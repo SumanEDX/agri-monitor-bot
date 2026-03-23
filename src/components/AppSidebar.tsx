@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Map, ClipboardList, Cloud, Settings, Sprout } from "lucide-react";
+import { LayoutDashboard, Users, Map, ClipboardList, Cloud, Settings, Sprout, Droplets } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
