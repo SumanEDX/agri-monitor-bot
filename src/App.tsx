@@ -9,6 +9,7 @@ import Farmers from "./pages/Farmers";
 import Plots from "./pages/Plots";
 import Tasks from "./pages/Tasks";
 import Weather from "./pages/Weather";
+import CropWaterProductivity from "./pages/CropWaterProductivity";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/plots" element={<Plots />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/weather" element={<Weather />} />
+            <Route path="/crop-water" element={<CropWaterProductivity />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
