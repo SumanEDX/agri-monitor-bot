@@ -8,6 +8,7 @@ const navItems = [
   { icon: Map, label: "Plots", path: "/plots" },
   { icon: ClipboardList, label: "Tasks", path: "/tasks" },
   { icon: Cloud, label: "Weather", path: "/weather" },
+  { icon: Droplets, label: "Crop Water", path: "/crop-water" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
