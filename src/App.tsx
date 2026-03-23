@@ -10,6 +10,7 @@ import Plots from "./pages/Plots";
 import Tasks from "./pages/Tasks";
 import Weather from "./pages/Weather";
 import CropWaterProductivity from "./pages/CropWaterProductivity";
+import WaterSources from "./pages/WaterSources";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
