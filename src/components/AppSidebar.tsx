@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Map, ClipboardList, Cloud, Settings, Sprout, Droplets } from "lucide-react";
+import { LayoutDashboard, Users, Map, ClipboardList, Cloud, Settings, Sprout, Droplets, Waves } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const navItems = [
   { icon: ClipboardList, label: "Tasks", path: "/tasks" },
   { icon: Cloud, label: "Weather", path: "/weather" },
   { icon: Droplets, label: "Crop Water", path: "/crop-water" },
+  { icon: Waves, label: "Water Sources", path: "/water-sources" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
