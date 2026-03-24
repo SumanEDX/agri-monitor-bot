@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Droplets, TrendingUp, Thermometer, Sun, Wind, CloudRain, Pencil } from "lucide-react";
+import { Droplets, TrendingUp, Thermometer, Sun, Wind, CloudRain, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Crop { id: string; name: string; image: string; avgCwp: number; }
 
@@ -42,10 +43,12 @@ const CropWaterProductivity = () => {
 
   const [editCrop, setEditCrop] = useState<Crop | null>(null);
   const [cropForm, setCropForm] = useState<Crop | null>(null);
+  const [deleteCropId, setDeleteCropId] = useState<string | null>(null);
 
-  const crop = crops.find((c) => c.id === selectedCrop)!;
+  const crop = crops.find((c) => c.id === selectedCrop) || crops[0];
 
   const prediction = useMemo(() => {
+    if (!crop) return { cwp: 0, uncertainty: 0 };
     const base = crop.avgCwp;
     const tempEffect = (params.avgTemp - 25) * -0.05;
     const moistureEffect = (params.soilMoisture - 0.5) * 2;
@@ -61,15 +64,19 @@ const CropWaterProductivity = () => {
   const qualityColor = prediction.cwp >= 5 ? "text-success" : prediction.cwp >= 3.5 ? "text-primary" : prediction.cwp >= 2 ? "text-warning" : "text-destructive";
   const productivityPercent = Math.min(100, (prediction.cwp / 6) * 100);
 
-  const handleParamChange = (key: string, value: number[]) => {
-    setParams((prev) => ({ ...prev, [key]: value[0] }));
-  };
+  const handleParamChange = (key: string, value: number[]) => { setParams((prev) => ({ ...prev, [key]: value[0] })); };
 
   const openEditCrop = (c: Crop) => { setEditCrop(c); setCropForm({ ...c }); };
-  const saveEditCrop = () => {
-    if (!cropForm) return;
-    setCrops((prev) => prev.map((c) => (c.id === cropForm.id ? cropForm : c)));
-    setEditCrop(null); setCropForm(null);
+  const saveEditCrop = () => { if (!cropForm) return; setCrops((prev) => prev.map((c) => (c.id === cropForm.id ? cropForm : c))); setEditCrop(null); setCropForm(null); };
+  const confirmDeleteCrop = () => {
+    if (deleteCropId !== null) {
+      setCrops((prev) => prev.filter((c) => c.id !== deleteCropId));
+      if (selectedCrop === deleteCropId) {
+        const remaining = crops.filter((c) => c.id !== deleteCropId);
+        if (remaining.length > 0) setSelectedCrop(remaining[0].id);
+      }
+      setDeleteCropId(null);
+    }
   };
 
   return (
@@ -85,9 +92,10 @@ const CropWaterProductivity = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Crop Selection</CardTitle>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditCrop(crop)}>
-                  <Pencil className="w-3.5 h-3.5" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditCrop(crop)}><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteCropId(crop.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -120,10 +128,7 @@ const CropWaterProductivity = () => {
               {envParams.map((param) => (
                 <div key={param.key} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {param.icon}
-                      <span className="text-sm font-medium text-foreground">{param.label} ({param.unit})</span>
-                    </div>
+                    <div className="flex items-center gap-2">{param.icon}<span className="text-sm font-medium text-foreground">{param.label} ({param.unit})</span></div>
                     <Badge variant="secondary" className="font-mono text-xs">{params[param.key].toFixed(2)}</Badge>
                   </div>
                   <Slider value={[params[param.key]]} min={param.min} max={param.max} step={param.step} onValueChange={(v) => handleParamChange(param.key, v)} className="w-full" />
@@ -147,22 +152,14 @@ const CropWaterProductivity = () => {
               </div>
               <div className="text-center">
                 <p className="text-sm font-semibold text-foreground">Predicted CWP</p>
-                <div className="mt-2 p-4 rounded-xl bg-muted/50 border">
-                  <p className="text-4xl font-bold text-primary">{prediction.cwp}</p>
-                  <p className="text-sm text-muted-foreground">± {prediction.uncertainty}</p>
-                </div>
+                <div className="mt-2 p-4 rounded-xl bg-muted/50 border"><p className="text-4xl font-bold text-primary">{prediction.cwp}</p><p className="text-sm text-muted-foreground">± {prediction.uncertainty}</p></div>
               </div>
               <div className="text-center">
                 <p className="text-sm font-semibold text-foreground">Quality Assessment</p>
-                <div className="mt-2 p-3 rounded-lg bg-muted/30 border">
-                  <p className={`text-lg font-bold ${qualityColor}`}>{qualityLabel}</p>
-                </div>
+                <div className="mt-2 p-3 rounded-lg bg-muted/30 border"><p className={`text-lg font-bold ${qualityColor}`}>{qualityLabel}</p></div>
               </div>
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">Productivity Index</span>
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                </div>
+                <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-foreground">Productivity Index</span><TrendingUp className="w-4 h-4 text-primary" /></div>
                 <Progress value={productivityPercent} className="h-3" />
                 <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>0</span><span>6+</span></div>
               </div>
@@ -200,12 +197,16 @@ const CropWaterProductivity = () => {
               <div><Label>Average CWP</Label><Input type="number" step="0.01" value={cropForm.avgCwp} onChange={(e) => setCropForm({ ...cropForm, avgCwp: Number(e.target.value) })} /></div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditCrop(null); setCropForm(null); }}>Cancel</Button>
-            <Button onClick={saveEditCrop}>Save</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => { setEditCrop(null); setCropForm(null); }}>Cancel</Button><Button onClick={saveEditCrop}>Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteCropId !== null} onOpenChange={(open) => { if (!open) setDeleteCropId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete Crop</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this crop? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteCrop} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

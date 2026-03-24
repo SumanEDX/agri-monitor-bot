@@ -1,4 +1,4 @@
-import { Plus, Ruler, Droplets, Leaf, Pencil } from "lucide-react";
+import { Plus, Ruler, Droplets, Leaf, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-interface Plot {
-  id: number; name: string; crop: string; area: string; farmer: string; health: number; stage: string; irrigation: string; soilMoisture: number;
-}
+interface Plot { id: number; name: string; crop: string; area: string; farmer: string; health: number; stage: string; irrigation: string; soilMoisture: number; }
 
 const initialPlots: Plot[] = [
   { id: 1, name: "Plot A", crop: "Wheat", area: "12 acres", farmer: "Rajesh Kumar", health: 92, stage: "Flowering", irrigation: "Drip", soilMoisture: 72 },
@@ -28,9 +27,11 @@ const Plots = () => {
   const [plots, setPlots] = useState<Plot[]>(initialPlots);
   const [editPlot, setEditPlot] = useState<Plot | null>(null);
   const [form, setForm] = useState<Plot | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const openEdit = (plot: Plot) => { setEditPlot(plot); setForm({ ...plot }); };
   const saveEdit = () => { if (!form) return; setPlots((prev) => prev.map((p) => (p.id === form.id ? form : p))); setEditPlot(null); setForm(null); };
+  const confirmDelete = () => { if (deleteId !== null) { setPlots((prev) => prev.filter((p) => p.id !== deleteId)); setDeleteId(null); } };
 
   return (
     <div className="space-y-6">
@@ -51,43 +52,22 @@ const Plots = () => {
                   <h3 className="font-semibold text-lg">{plot.name}</h3>
                   <p className="text-sm text-muted-foreground">{plot.farmer}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(plot)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(plot)}><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(plot.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                   <Badge variant="secondary">{plot.crop}</Badge>
                 </div>
               </div>
-
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-2 rounded-lg bg-muted">
-                  <Ruler className="w-4 h-4 mx-auto text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground mt-1">Area</p>
-                  <p className="text-sm font-semibold">{plot.area}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-muted">
-                  <Leaf className="w-4 h-4 mx-auto text-primary" />
-                  <p className="text-xs text-muted-foreground mt-1">Stage</p>
-                  <p className="text-sm font-semibold">{plot.stage}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-muted">
-                  <Droplets className="w-4 h-4 mx-auto text-info" />
-                  <p className="text-xs text-muted-foreground mt-1">Moisture</p>
-                  <p className="text-sm font-semibold">{plot.soilMoisture}%</p>
-                </div>
+                <div className="p-2 rounded-lg bg-muted"><Ruler className="w-4 h-4 mx-auto text-muted-foreground" /><p className="text-xs text-muted-foreground mt-1">Area</p><p className="text-sm font-semibold">{plot.area}</p></div>
+                <div className="p-2 rounded-lg bg-muted"><Leaf className="w-4 h-4 mx-auto text-primary" /><p className="text-xs text-muted-foreground mt-1">Stage</p><p className="text-sm font-semibold">{plot.stage}</p></div>
+                <div className="p-2 rounded-lg bg-muted"><Droplets className="w-4 h-4 mx-auto text-info" /><p className="text-xs text-muted-foreground mt-1">Moisture</p><p className="text-sm font-semibold">{plot.soilMoisture}%</p></div>
               </div>
-
               <div className="space-y-1.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Crop Health</span>
-                  <span className={`font-semibold ${healthColor(plot.health)}`}>{plot.health}%</span>
-                </div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Crop Health</span><span className={`font-semibold ${healthColor(plot.health)}`}>{plot.health}%</span></div>
                 <Progress value={plot.health} className="h-2" />
               </div>
-
-              <div className="flex justify-between items-center text-xs text-muted-foreground">
-                <span>Irrigation: {plot.irrigation}</span>
-              </div>
+              <div className="flex justify-between items-center text-xs text-muted-foreground"><span>Irrigation: {plot.irrigation}</span></div>
             </CardContent>
           </Card>
         ))}
@@ -104,24 +84,20 @@ const Plots = () => {
               <div><Label>Farmer</Label><Input value={form.farmer} onChange={(e) => setForm({ ...form, farmer: e.target.value })} /></div>
               <div><Label>Health (%)</Label><Input type="number" value={form.health} onChange={(e) => setForm({ ...form, health: Number(e.target.value) })} /></div>
               <div><Label>Growth Stage</Label><Input value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })} /></div>
-              <div>
-                <Label>Irrigation</Label>
-                <Select value={form.irrigation} onValueChange={(v) => setForm({ ...form, irrigation: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["Drip", "Flood", "Sprinkler", "Rain-fed"].map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              <div><Label>Irrigation</Label><Select value={form.irrigation} onValueChange={(v) => setForm({ ...form, irrigation: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Drip", "Flood", "Sprinkler", "Rain-fed"].map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent></Select></div>
               <div><Label>Soil Moisture (%)</Label><Input type="number" value={form.soilMoisture} onChange={(e) => setForm({ ...form, soilMoisture: Number(e.target.value) })} /></div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditPlot(null); setForm(null); }}>Cancel</Button>
-            <Button onClick={saveEdit}>Save</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => { setEditPlot(null); setForm(null); }}>Cancel</Button><Button onClick={saveEdit}>Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete Plot</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this plot? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
