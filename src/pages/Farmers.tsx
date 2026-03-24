@@ -1,4 +1,4 @@
-import { Search, Plus, Phone, MapPin, Pencil } from "lucide-react";
+import { Search, Plus, Phone, MapPin, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,15 +7,10 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Farmer {
-  id: number;
-  name: string;
-  phone: string;
-  location: string;
-  crops: string[];
-  plots: number;
-  status: string;
+  id: number; name: string; phone: string; location: string; crops: string[]; plots: number; status: string;
 }
 
 const initialFarmers: Farmer[] = [
@@ -32,20 +27,13 @@ const Farmers = () => {
   const [search, setSearch] = useState("");
   const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
   const [form, setForm] = useState<Farmer | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const filtered = farmers.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()));
 
-  const openEdit = (farmer: Farmer) => {
-    setEditFarmer(farmer);
-    setForm({ ...farmer });
-  };
-
-  const saveEdit = () => {
-    if (!form) return;
-    setFarmers((prev) => prev.map((f) => (f.id === form.id ? form : f)));
-    setEditFarmer(null);
-    setForm(null);
-  };
+  const openEdit = (farmer: Farmer) => { setEditFarmer(farmer); setForm({ ...farmer }); };
+  const saveEdit = () => { if (!form) return; setFarmers((prev) => prev.map((f) => (f.id === form.id ? form : f))); setEditFarmer(null); setForm(null); };
+  const confirmDelete = () => { if (deleteId !== null) { setFarmers((prev) => prev.filter((f) => f.id !== deleteId)); setDeleteId(null); } };
 
   return (
     <div className="space-y-6">
@@ -54,9 +42,7 @@ const Farmers = () => {
           <h1 className="text-2xl font-bold">Farmers</h1>
           <p className="text-muted-foreground mt-1">{farmers.length} registered farmers</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" /> Add Farmer
-        </Button>
+        <Button className="gap-2"><Plus className="w-4 h-4" /> Add Farmer</Button>
       </div>
 
       <div className="relative max-w-sm">
@@ -80,26 +66,15 @@ const Farmers = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(farmer)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                  <Badge className={farmer.status === "active" ? "bg-primary/15 text-primary border-0" : "bg-muted text-muted-foreground border-0"}>
-                    {farmer.status}
-                  </Badge>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(farmer)}><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(farmer.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  <Badge className={farmer.status === "active" ? "bg-primary/15 text-primary border-0" : "bg-muted text-muted-foreground border-0"}>{farmer.status}</Badge>
                 </div>
               </div>
-
-              <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Phone className="w-3 h-3" /> {farmer.phone}
-              </div>
-
+              <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground"><Phone className="w-3 h-3" /> {farmer.phone}</div>
               <div className="mt-3 flex items-center justify-between">
-                <div className="flex gap-1.5 flex-wrap">
-                  {farmer.crops.map((crop) => (
-                    <Badge key={crop} variant="secondary" className="text-xs">{crop}</Badge>
-                  ))}
-                </div>
+                <div className="flex gap-1.5 flex-wrap">{farmer.crops.map((crop) => <Badge key={crop} variant="secondary" className="text-xs">{crop}</Badge>)}</div>
                 <span className="text-xs text-muted-foreground">{farmer.plots} plots</span>
               </div>
             </CardContent>
@@ -117,24 +92,19 @@ const Farmers = () => {
               <div><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
               <div><Label>Crops (comma-separated)</Label><Input value={form.crops.join(", ")} onChange={(e) => setForm({ ...form, crops: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} /></div>
               <div><Label>Plots</Label><Input type="number" value={form.plots} onChange={(e) => setForm({ ...form, plots: Number(e.target.value) })} /></div>
-              <div>
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div><Label>Status</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent></Select></div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditFarmer(null); setForm(null); }}>Cancel</Button>
-            <Button onClick={saveEdit}>Save</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => { setEditFarmer(null); setForm(null); }}>Cancel</Button><Button onClick={saveEdit}>Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete Farmer</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this farmer? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

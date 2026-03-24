@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, AlertCircle, Plus, Pencil } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
-interface Task {
-  id: number; title: string; assignee: string; due: string; priority: string; status: string;
-}
+interface Task { id: number; title: string; assignee: string; due: string; priority: string; status: string; }
 
 const initialTasks: Task[] = [
   { id: 1, title: "Apply fertilizer to Plot A", assignee: "Rajesh Kumar", due: "Today", priority: "high", status: "pending" },
@@ -39,9 +38,11 @@ const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [form, setForm] = useState<Task | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const openEdit = (task: Task) => { setEditTask(task); setForm({ ...task }); };
   const saveEdit = () => { if (!form) return; setTasks((prev) => prev.map((t) => (t.id === form.id ? form : t))); setEditTask(null); setForm(null); };
+  const confirmDelete = () => { if (deleteId !== null) { setTasks((prev) => prev.filter((t) => t.id !== deleteId)); setDeleteId(null); } };
 
   const pending = tasks.filter((t) => t.status === "pending");
   const inProgress = tasks.filter((t) => t.status === "in-progress");
@@ -58,9 +59,8 @@ const Tasks = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(task)}>
-            <Pencil className="w-3.5 h-3.5" />
-          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(task)}><Pencil className="w-3.5 h-3.5" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(task.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
           <Badge className={priorityStyles[task.priority]}>{task.priority}</Badge>
           <span className="text-xs text-muted-foreground whitespace-nowrap">{task.due}</span>
         </div>
@@ -99,36 +99,20 @@ const Tasks = () => {
               <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
               <div><Label>Assignee</Label><Input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} /></div>
               <div><Label>Due</Label><Input value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
-              <div>
-                <Label>Priority</Label>
-                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div><Label>Priority</Label><Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="high">High</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select></div>
+              <div><Label>Status</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="in-progress">In Progress</SelectItem><SelectItem value="completed">Completed</SelectItem></SelectContent></Select></div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditTask(null); setForm(null); }}>Cancel</Button>
-            <Button onClick={saveEdit}>Save</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => { setEditTask(null); setForm(null); }}>Cancel</Button><Button onClick={saveEdit}>Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete Task</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this task? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

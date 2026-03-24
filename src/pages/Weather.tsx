@@ -1,4 +1,4 @@
-import { Cloud, Droplets, Wind, Sun, CloudRain, ThermometerSun, Eye, Pencil } from "lucide-react";
+import { Cloud, Droplets, Wind, Sun, CloudRain, ThermometerSun, Eye, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = { Sun, Cloud, CloudRain };
 
@@ -35,16 +36,13 @@ const Weather = () => {
   const [editCurrent, setEditCurrent] = useState(false);
   const [editMetricIdx, setEditMetricIdx] = useState<number | null>(null);
   const [editForecastIdx, setEditForecastIdx] = useState<number | null>(null);
+  const [deleteMetricIdx, setDeleteMetricIdx] = useState<number | null>(null);
+  const [deleteForecastIdx, setDeleteForecastIdx] = useState<number | null>(null);
 
-  // Current weather form
   const [tempForm, setTempForm] = useState(currentTemp);
   const [condForm, setCondForm] = useState(currentCondition);
   const [locForm, setLocForm] = useState(location);
-
-  // Metric form
   const [metricForm, setMetricForm] = useState({ label: "", value: "" });
-
-  // Forecast form
   const [forecastForm, setForecastForm] = useState<ForecastDay>({ day: "", iconName: "Sun", temp: "", condition: "" });
 
   const metricIcons: Record<string, { icon: React.FC<{ className?: string }>; color: string }> = {
@@ -83,10 +81,11 @@ const Weather = () => {
           const meta = metricIcons[item.label] || { icon: Eye, color: "text-primary" };
           const Icon = meta.icon;
           return (
-            <Card key={item.label} className="border-border relative group">
-              <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { setMetricForm({ ...item }); setEditMetricIdx(idx); }}>
-                <Pencil className="w-3 h-3" />
-              </Button>
+            <Card key={idx} className="border-border relative group">
+              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setMetricForm({ ...item }); setEditMetricIdx(idx); }}><Pencil className="w-3 h-3" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteMetricIdx(idx)}><Trash2 className="w-3 h-3" /></Button>
+              </div>
               <CardContent className="p-5 text-center">
                 <Icon className={`w-6 h-6 mx-auto ${meta.color}`} />
                 <p className="text-xs text-muted-foreground mt-2">{item.label}</p>
@@ -104,12 +103,15 @@ const Weather = () => {
             {forecast.map((day, idx) => {
               const Icon = iconMap[day.iconName] || Sun;
               return (
-                <div key={day.day} className="text-center p-3 rounded-xl bg-muted hover:bg-accent transition-colors relative group cursor-pointer" onClick={() => { setForecastForm({ ...day }); setEditForecastIdx(idx); }}>
+                <div key={idx} className="text-center p-3 rounded-xl bg-muted hover:bg-accent transition-colors relative group">
+                  <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setForecastForm({ ...day }); setEditForecastIdx(idx); }}><Pencil className="w-2.5 h-2.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleteForecastIdx(idx)}><Trash2 className="w-2.5 h-2.5" /></Button>
+                  </div>
                   <p className="text-sm font-medium text-muted-foreground">{day.day}</p>
                   <Icon className="w-8 h-8 mx-auto my-3 text-foreground/70" />
                   <p className="text-lg font-bold">{day.temp}</p>
                   <p className="text-xs text-muted-foreground mt-1">{day.condition}</p>
-                  <Pencil className="w-3 h-3 absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-muted-foreground transition-opacity" />
                 </div>
               );
             })}
@@ -156,17 +158,7 @@ const Weather = () => {
             <div><Label>Day</Label><Input value={forecastForm.day} onChange={(e) => setForecastForm({ ...forecastForm, day: e.target.value })} /></div>
             <div><Label>Temperature</Label><Input value={forecastForm.temp} onChange={(e) => setForecastForm({ ...forecastForm, temp: e.target.value })} /></div>
             <div><Label>Condition</Label><Input value={forecastForm.condition} onChange={(e) => setForecastForm({ ...forecastForm, condition: e.target.value })} /></div>
-            <div>
-              <Label>Icon</Label>
-              <Select value={forecastForm.iconName} onValueChange={(v) => setForecastForm({ ...forecastForm, iconName: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sun">Sunny</SelectItem>
-                  <SelectItem value="Cloud">Cloudy</SelectItem>
-                  <SelectItem value="CloudRain">Rain</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <div><Label>Icon</Label><Select value={forecastForm.iconName} onValueChange={(v) => setForecastForm({ ...forecastForm, iconName: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Sun">Sunny</SelectItem><SelectItem value="Cloud">Cloudy</SelectItem><SelectItem value="CloudRain">Rain</SelectItem></SelectContent></Select></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditForecastIdx(null)}>Cancel</Button>
@@ -174,6 +166,22 @@ const Weather = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Metric */}
+      <AlertDialog open={deleteMetricIdx !== null} onOpenChange={(open) => { if (!open) setDeleteMetricIdx(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete Metric</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this metric?</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (deleteMetricIdx !== null) { setMetrics((prev) => prev.filter((_, i) => i !== deleteMetricIdx)); setDeleteMetricIdx(null); } }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Forecast */}
+      <AlertDialog open={deleteForecastIdx !== null} onOpenChange={(open) => { if (!open) setDeleteForecastIdx(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete Forecast Day</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this forecast day?</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => { if (deleteForecastIdx !== null) { setForecast((prev) => prev.filter((_, i) => i !== deleteForecastIdx)); setDeleteForecastIdx(null); } }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
