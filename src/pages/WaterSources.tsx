@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Droplets, Search, MapPin, Activity, TrendingUp, Waves, Pencil, Trash2 } from "lucide-react";
+import { Droplets, Search, MapPin, Activity, TrendingUp, Waves, Pencil, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useI18n } from "@/lib/i18n";
 
 interface WaterSource {
   id: string; name: string; type: "Borewell" | "Canal" | "River" | "Pond" | "Rainwater" | "Tank";
@@ -36,15 +37,27 @@ const statusColor: Record<WaterSource["status"], string> = {
 const levelColor = (pct: number) => pct >= 60 ? "bg-success" : pct >= 30 ? "bg-warning" : "bg-destructive";
 
 const WaterSources = () => {
+  const { t } = useI18n();
   const [sources, setSources] = useState<WaterSource[]>(initialSources);
   const [search, setSearch] = useState("");
   const [editSource, setEditSource] = useState<WaterSource | null>(null);
   const [form, setForm] = useState<WaterSource | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState<Omit<WaterSource, "id">>({ name: "", type: "Borewell", location: "", capacityLiters: 0, currentLevelPercent: 0, status: "Active", linkedPlots: 0, lastChecked: new Date().toISOString().split("T")[0] });
 
   const openEdit = (s: WaterSource) => { setEditSource(s); setForm({ ...s }); };
   const saveEdit = () => { if (!form) return; setSources((prev) => prev.map((s) => (s.id === form.id ? form : s))); setEditSource(null); setForm(null); };
-  const confirmDelete = () => { if (deleteId !== null) { setSources((prev) => prev.filter((s) => s.id !== deleteId)); setDeleteId(null); } };
+  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
+  const confirmDelete = () => {
+    if (form) { setSources((prev) => prev.filter((s) => s.id !== form.id)); setShowDeleteConfirm(false); setEditSource(null); setForm(null); }
+  };
+  const handleAdd = () => {
+    const newId = String(Math.max(0, ...sources.map((s) => Number(s.id))) + 1);
+    setSources((prev) => [...prev, { ...addForm, id: newId }]);
+    setAddOpen(false);
+    setAddForm({ name: "", type: "Borewell", location: "", capacityLiters: 0, currentLevelPercent: 0, status: "Active", linkedPlots: 0, lastChecked: new Date().toISOString().split("T")[0] });
+  };
 
   const filtered = sources.filter(
     (s) => s.name.toLowerCase().includes(search.toLowerCase()) || s.type.toLowerCase().includes(search.toLowerCase()) || s.location.toLowerCase().includes(search.toLowerCase())
@@ -55,23 +68,39 @@ const WaterSources = () => {
   const avgLevel = totalSources > 0 ? Math.round(sources.reduce((a, s) => a + s.currentLevelPercent, 0) / totalSources) : 0;
   const totalLinkedPlots = sources.reduce((a, s) => a + s.linkedPlots, 0);
 
+  const sourceFormFields = (f: any, setF: (v: any) => void) => (
+    <div className="space-y-4">
+      <div><Label>{t("name")}</Label><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
+      <div><Label>{t("type")}</Label><Select value={f.type} onValueChange={(v) => setF({ ...f, type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(["Borewell", "Canal", "River", "Pond", "Rainwater", "Tank"] as const).map((tp) => <SelectItem key={tp} value={tp}>{tp}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label>{t("location")}</Label><Input value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} /></div>
+      <div><Label>{t("capacity")}</Label><Input type="number" value={f.capacityLiters} onChange={(e) => setF({ ...f, capacityLiters: Number(e.target.value) })} /></div>
+      <div><Label>{t("currentLevel")}</Label><Input type="number" value={f.currentLevelPercent} onChange={(e) => setF({ ...f, currentLevelPercent: Number(e.target.value) })} /></div>
+      <div><Label>{t("status")}</Label><Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(["Active", "Low", "Dry", "Maintenance"] as const).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label>{t("linkedPlotsCount")}</Label><Input type="number" value={f.linkedPlots} onChange={(e) => setF({ ...f, linkedPlots: Number(e.target.value) })} /></div>
+      <div><Label>{t("lastChecked")}</Label><Input type="date" value={f.lastChecked} onChange={(e) => setF({ ...f, lastChecked: e.target.value })} /></div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Water Sources</h1>
-        <p className="text-muted-foreground mt-1">Monitor and manage all water sources across your farm</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t("waterSources")}</h1>
+          <p className="text-muted-foreground mt-1">{t("monitorWaterSources")}</p>
+        </div>
+        <Button className="gap-2" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> {t("addWaterSource")}</Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Droplets className="w-5 h-5 text-primary" /></div><div><p className="text-2xl font-bold text-foreground">{totalSources}</p><p className="text-xs text-muted-foreground">Total Sources</p></div></CardContent></Card>
-        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><Activity className="w-5 h-5 text-success" /></div><div><p className="text-2xl font-bold text-foreground">{activeSources}</p><p className="text-xs text-muted-foreground">Active</p></div></CardContent></Card>
-        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center"><Waves className="w-5 h-5 text-warning" /></div><div><p className="text-2xl font-bold text-foreground">{avgLevel}%</p><p className="text-xs text-muted-foreground">Avg Level</p></div></CardContent></Card>
-        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-primary" /></div><div><p className="text-2xl font-bold text-foreground">{totalLinkedPlots}</p><p className="text-xs text-muted-foreground">Linked Plots</p></div></CardContent></Card>
+        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><Droplets className="w-5 h-5 text-primary" /></div><div><p className="text-2xl font-bold text-foreground">{totalSources}</p><p className="text-xs text-muted-foreground">{t("totalSourcesLabel")}</p></div></CardContent></Card>
+        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center"><Activity className="w-5 h-5 text-success" /></div><div><p className="text-2xl font-bold text-foreground">{activeSources}</p><p className="text-xs text-muted-foreground">{t("activeLabel")}</p></div></CardContent></Card>
+        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center"><Waves className="w-5 h-5 text-warning" /></div><div><p className="text-2xl font-bold text-foreground">{avgLevel}%</p><p className="text-xs text-muted-foreground">{t("avgLevel")}</p></div></CardContent></Card>
+        <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-primary" /></div><div><p className="text-2xl font-bold text-foreground">{totalLinkedPlots}</p><p className="text-xs text-muted-foreground">{t("linkedPlots")}</p></div></CardContent></Card>
       </div>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search water sources..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder={t("searchWaterSources")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -79,13 +108,9 @@ const WaterSources = () => {
           <Card key={source.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <Droplets className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-base">{source.name}</CardTitle>
-                </div>
+                <div className="flex items-center gap-2"><Droplets className="w-5 h-5 text-primary" /><CardTitle className="text-base">{source.name}</CardTitle></div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(source)}><Pencil className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(source.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
                   <Badge variant="outline" className={statusColor[source.status]}>{source.status}</Badge>
                 </div>
               </div>
@@ -96,41 +121,44 @@ const WaterSources = () => {
                 <Badge variant="secondary" className="text-xs">{source.type}</Badge>
               </div>
               <div>
-                <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">Water Level</span><span className="font-medium text-foreground">{source.currentLevelPercent}%</span></div>
+                <div className="flex justify-between text-sm mb-1"><span className="text-muted-foreground">{t("waterLevel")}</span><span className="font-medium text-foreground">{source.currentLevelPercent}%</span></div>
                 <div className="h-2.5 w-full rounded-full bg-secondary overflow-hidden"><div className={`h-full rounded-full transition-all ${levelColor(source.currentLevelPercent)}`} style={{ width: `${source.currentLevelPercent}%` }} /></div>
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground pt-1"><span>Capacity: {(source.capacityLiters / 1000).toFixed(0)}k L</span><span>{source.linkedPlots} plots linked</span></div>
-              <p className="text-xs text-muted-foreground">Last checked: {source.lastChecked}</p>
+              <div className="flex justify-between text-xs text-muted-foreground pt-1"><span>{t("capacity")}: {(source.capacityLiters / 1000).toFixed(0)}k L</span><span>{source.linkedPlots} {t("plotsLinked")}</span></div>
+              <p className="text-xs text-muted-foreground">{t("lastChecked")}: {source.lastChecked}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {filtered.length === 0 && <div className="text-center py-12 text-muted-foreground">No water sources found matching your search.</div>}
+      {filtered.length === 0 && <div className="text-center py-12 text-muted-foreground">{t("noWaterSources")}</div>}
 
       <Dialog open={!!editSource} onOpenChange={(open) => { if (!open) { setEditSource(null); setForm(null); } }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit Water Source</DialogTitle></DialogHeader>
-          {form && (
-            <div className="space-y-4">
-              <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-              <div><Label>Type</Label><Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as WaterSource["type"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(["Borewell", "Canal", "River", "Pond", "Rainwater", "Tank"] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
-              <div><Label>Capacity (Liters)</Label><Input type="number" value={form.capacityLiters} onChange={(e) => setForm({ ...form, capacityLiters: Number(e.target.value) })} /></div>
-              <div><Label>Current Level (%)</Label><Input type="number" value={form.currentLevelPercent} onChange={(e) => setForm({ ...form, currentLevelPercent: Number(e.target.value) })} /></div>
-              <div><Label>Status</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as WaterSource["status"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(["Active", "Low", "Dry", "Maintenance"] as const).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
-              <div><Label>Linked Plots</Label><Input type="number" value={form.linkedPlots} onChange={(e) => setForm({ ...form, linkedPlots: Number(e.target.value) })} /></div>
-              <div><Label>Last Checked</Label><Input type="date" value={form.lastChecked} onChange={(e) => setForm({ ...form, lastChecked: e.target.value })} /></div>
+          <DialogHeader><DialogTitle>{t("editWaterSource")}</DialogTitle></DialogHeader>
+          {form && sourceFormFields(form, setForm)}
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button variant="destructive" onClick={handleDeleteFromEdit}>{t("delete")}</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setEditSource(null); setForm(null); }}>{t("cancel")}</Button>
+              <Button onClick={saveEdit}>{t("save")}</Button>
             </div>
-          )}
-          <DialogFooter><Button variant="outline" onClick={() => { setEditSource(null); setForm(null); }}>Cancel</Button><Button onClick={saveEdit}>Save</Button></DialogFooter>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("addWaterSource")}</DialogTitle></DialogHeader>
+          {sourceFormFields(addForm, setAddForm)}
+          <DialogFooter><Button variant="outline" onClick={() => setAddOpen(false)}>{t("cancel")}</Button><Button onClick={handleAdd}>{t("save")}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Water Source</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this water source? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>{t("deleteWaterSource")}</AlertDialogTitle><AlertDialogDescription>{t("deleteConfirm")}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>{t("cancel")}</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t("delete")}</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

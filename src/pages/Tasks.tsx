@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, AlertCircle, Plus, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle2, Clock, AlertCircle, Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useI18n } from "@/lib/i18n";
 
 interface Task { id: number; title: string; assignee: string; due: string; priority: string; status: string; }
 
@@ -35,18 +36,40 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 const Tasks = () => {
+  const { t } = useI18n();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [form, setForm] = useState<Task | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState<Omit<Task, "id">>({ title: "", assignee: "", due: "", priority: "medium", status: "pending" });
 
   const openEdit = (task: Task) => { setEditTask(task); setForm({ ...task }); };
   const saveEdit = () => { if (!form) return; setTasks((prev) => prev.map((t) => (t.id === form.id ? form : t))); setEditTask(null); setForm(null); };
-  const confirmDelete = () => { if (deleteId !== null) { setTasks((prev) => prev.filter((t) => t.id !== deleteId)); setDeleteId(null); } };
+  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
+  const confirmDelete = () => {
+    if (form) { setTasks((prev) => prev.filter((t) => t.id !== form.id)); setShowDeleteConfirm(false); setEditTask(null); setForm(null); }
+  };
+  const handleAdd = () => {
+    const newId = Math.max(0, ...tasks.map((t) => t.id)) + 1;
+    setTasks((prev) => [...prev, { ...addForm, id: newId }]);
+    setAddOpen(false);
+    setAddForm({ title: "", assignee: "", due: "", priority: "medium", status: "pending" });
+  };
 
-  const pending = tasks.filter((t) => t.status === "pending");
-  const inProgress = tasks.filter((t) => t.status === "in-progress");
-  const completed = tasks.filter((t) => t.status === "completed");
+  const pending = tasks.filter((tk) => tk.status === "pending");
+  const inProgress = tasks.filter((tk) => tk.status === "in-progress");
+  const completed = tasks.filter((tk) => tk.status === "completed");
+
+  const taskFormFields = (f: any, setF: (v: any) => void) => (
+    <div className="space-y-4">
+      <div><Label>{t("title")}</Label><Input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></div>
+      <div><Label>{t("assignee")}</Label><Input value={f.assignee} onChange={(e) => setF({ ...f, assignee: e.target.value })} /></div>
+      <div><Label>{t("due")}</Label><Input value={f.due} onChange={(e) => setF({ ...f, due: e.target.value })} /></div>
+      <div><Label>{t("priority")}</Label><Select value={f.priority} onValueChange={(v) => setF({ ...f, priority: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="high">{t("high")}</SelectItem><SelectItem value="medium">{t("medium")}</SelectItem><SelectItem value="low">{t("low")}</SelectItem></SelectContent></Select></div>
+      <div><Label>{t("status")}</Label><Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">{t("pending")}</SelectItem><SelectItem value="in-progress">{t("inProgress")}</SelectItem><SelectItem value="completed">{t("completed")}</SelectItem></SelectContent></Select></div>
+    </div>
+  );
 
   const TaskCard = ({ task }: { task: Task }) => (
     <Card className="border-border hover:shadow-sm transition-shadow">
@@ -55,13 +78,12 @@ const Tasks = () => {
           {statusIcons[task.status]}
           <div>
             <p className="font-medium text-sm">{task.title}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Assigned to {task.assignee}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("assignedTo")} {task.assignee}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(task)}><Pencil className="w-3.5 h-3.5" /></Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteId(task.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-          <Badge className={priorityStyles[task.priority]}>{task.priority}</Badge>
+          <Badge className={priorityStyles[task.priority]}>{t(task.priority)}</Badge>
           <span className="text-xs text-muted-foreground whitespace-nowrap">{task.due}</span>
         </div>
       </CardContent>
@@ -72,45 +94,51 @@ const Tasks = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Tasks</h1>
-          <p className="text-muted-foreground mt-1">{tasks.length} total tasks</p>
+          <h1 className="text-2xl font-bold">{t("tasks")}</h1>
+          <p className="text-muted-foreground mt-1">{tasks.length} {t("totalTasks")}</p>
         </div>
-        <Button className="gap-2"><Plus className="w-4 h-4" /> New Task</Button>
+        <Button className="gap-2" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> {t("newTask")}</Button>
       </div>
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList>
-          <TabsTrigger value="all">All ({tasks.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
-          <TabsTrigger value="in-progress">In Progress ({inProgress.length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
+          <TabsTrigger value="all">{t("all")} ({tasks.length})</TabsTrigger>
+          <TabsTrigger value="pending">{t("pending")} ({pending.length})</TabsTrigger>
+          <TabsTrigger value="in-progress">{t("inProgress")} ({inProgress.length})</TabsTrigger>
+          <TabsTrigger value="completed">{t("completed")} ({completed.length})</TabsTrigger>
         </TabsList>
-        <TabsContent value="all" className="space-y-3 mt-4">{tasks.map((t) => <TaskCard key={t.id} task={t} />)}</TabsContent>
-        <TabsContent value="pending" className="space-y-3 mt-4">{pending.map((t) => <TaskCard key={t.id} task={t} />)}</TabsContent>
-        <TabsContent value="in-progress" className="space-y-3 mt-4">{inProgress.map((t) => <TaskCard key={t.id} task={t} />)}</TabsContent>
-        <TabsContent value="completed" className="space-y-3 mt-4">{completed.map((t) => <TaskCard key={t.id} task={t} />)}</TabsContent>
+        <TabsContent value="all" className="space-y-3 mt-4">{tasks.map((tk) => <TaskCard key={tk.id} task={tk} />)}</TabsContent>
+        <TabsContent value="pending" className="space-y-3 mt-4">{pending.map((tk) => <TaskCard key={tk.id} task={tk} />)}</TabsContent>
+        <TabsContent value="in-progress" className="space-y-3 mt-4">{inProgress.map((tk) => <TaskCard key={tk.id} task={tk} />)}</TabsContent>
+        <TabsContent value="completed" className="space-y-3 mt-4">{completed.map((tk) => <TaskCard key={tk.id} task={tk} />)}</TabsContent>
       </Tabs>
 
       <Dialog open={!!editTask} onOpenChange={(open) => { if (!open) { setEditTask(null); setForm(null); } }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit Task</DialogTitle></DialogHeader>
-          {form && (
-            <div className="space-y-4">
-              <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-              <div><Label>Assignee</Label><Input value={form.assignee} onChange={(e) => setForm({ ...form, assignee: e.target.value })} /></div>
-              <div><Label>Due</Label><Input value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} /></div>
-              <div><Label>Priority</Label><Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="high">High</SelectItem><SelectItem value="medium">Medium</SelectItem><SelectItem value="low">Low</SelectItem></SelectContent></Select></div>
-              <div><Label>Status</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="in-progress">In Progress</SelectItem><SelectItem value="completed">Completed</SelectItem></SelectContent></Select></div>
+          <DialogHeader><DialogTitle>{t("editTask")}</DialogTitle></DialogHeader>
+          {form && taskFormFields(form, setForm)}
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <Button variant="destructive" onClick={handleDeleteFromEdit}>{t("delete")}</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setEditTask(null); setForm(null); }}>{t("cancel")}</Button>
+              <Button onClick={saveEdit}>{t("save")}</Button>
             </div>
-          )}
-          <DialogFooter><Button variant="outline" onClick={() => { setEditTask(null); setForm(null); }}>Cancel</Button><Button onClick={saveEdit}>Save</Button></DialogFooter>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("newTask")}</DialogTitle></DialogHeader>
+          {taskFormFields(addForm, setAddForm)}
+          <DialogFooter><Button variant="outline" onClick={() => setAddOpen(false)}>{t("cancel")}</Button><Button onClick={handleAdd}>{t("save")}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Task</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this task? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>{t("deleteTask")}</AlertDialogTitle><AlertDialogDescription>{t("deleteConfirm")}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>{t("cancel")}</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{t("delete")}</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { I18nProvider } from "@/lib/i18n";
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import Farmers from "./pages/Farmers";
@@ -19,23 +20,25 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/farmers" element={<Farmers />} />
-            <Route path="/plots" element={<Plots />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/weather" element={<Weather />} />
-            <Route path="/crop-water" element={<CropWaterProductivity />} />
-            <Route path="/water-sources" element={<WaterSources />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppLayout>
-      </BrowserRouter>
+      <I18nProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/farmers" element={<Farmers />} />
+              <Route path="/plots" element={<Plots />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/weather" element={<Weather />} />
+              <Route path="/crop-water" element={<CropWaterProductivity />} />
+              <Route path="/water-sources" element={<WaterSources />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
+        </BrowserRouter>
+      </I18nProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
