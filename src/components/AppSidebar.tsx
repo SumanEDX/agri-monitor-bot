@@ -1,20 +1,23 @@
-import { LayoutDashboard, Users, Map, ClipboardList, Cloud, Settings, Sprout, Droplets, Waves } from "lucide-react";
+import { LayoutDashboard, Users, Map, ClipboardList, Cloud, Settings, Sprout, Droplets, Waves, Globe } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Users, label: "Farmers", path: "/farmers" },
-  { icon: Map, label: "Plots", path: "/plots" },
-  { icon: ClipboardList, label: "Tasks", path: "/tasks" },
-  { icon: Cloud, label: "Weather", path: "/weather" },
-  { icon: Droplets, label: "Crop Water", path: "/crop-water" },
-  { icon: Waves, label: "Water Sources", path: "/water-sources" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-];
+import { useI18n, languageNames, type Language } from "@/lib/i18n";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const AppSidebar = () => {
   const location = useLocation();
+  const { t, language, setLanguage } = useI18n();
+
+  const navItems = [
+    { icon: LayoutDashboard, label: t("dashboard"), path: "/" },
+    { icon: Users, label: t("farmers"), path: "/farmers" },
+    { icon: Map, label: t("plots"), path: "/plots" },
+    { icon: ClipboardList, label: t("tasks"), path: "/tasks" },
+    { icon: Cloud, label: t("weather"), path: "/weather" },
+    { icon: Droplets, label: t("cropWater"), path: "/crop-water" },
+    { icon: Waves, label: t("waterSources"), path: "/water-sources" },
+    { icon: Settings, label: t("settings"), path: "/settings" },
+  ];
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
@@ -24,7 +27,7 @@ const AppSidebar = () => {
         </div>
         <div>
           <h1 className="text-lg font-bold text-sidebar-primary-foreground">SmartFarm</h1>
-          <p className="text-xs text-sidebar-foreground/60">Farm Management</p>
+          <p className="text-xs text-sidebar-foreground/60">{t("farmManagement")}</p>
         </div>
       </div>
 
@@ -49,6 +52,24 @@ const AppSidebar = () => {
         })}
       </nav>
 
+      {/* Language Switcher */}
+      <div className="px-4 py-3 border-t border-sidebar-border">
+        <div className="flex items-center gap-2 px-2 mb-2">
+          <Globe className="w-4 h-4 text-sidebar-foreground/60" />
+          <span className="text-xs text-sidebar-foreground/60">{t("language")}</span>
+        </div>
+        <Select value={language} onValueChange={(v) => setLanguage(v as Language)}>
+          <SelectTrigger className="bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground text-sm h-9">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.entries(languageNames) as [Language, string][]).map(([key, name]) => (
+              <SelectItem key={key} value={key}>{name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="px-4 py-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2">
           <div className="w-9 h-9 rounded-full bg-sidebar-accent flex items-center justify-center text-sm font-semibold text-sidebar-accent-foreground">
@@ -56,7 +77,7 @@ const AppSidebar = () => {
           </div>
           <div>
             <p className="text-sm font-medium text-sidebar-primary-foreground">John Doe</p>
-            <p className="text-xs text-sidebar-foreground/60">Farm Manager</p>
+            <p className="text-xs text-sidebar-foreground/60">{t("farmManager")}</p>
           </div>
         </div>
       </div>

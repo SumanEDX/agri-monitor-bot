@@ -3,13 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Droplets, TrendingUp, Thermometer, Sun, Wind, CloudRain, Pencil, Trash2 } from "lucide-react";
+import { Droplets, TrendingUp, Thermometer, Sun, Wind, CloudRain } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useI18n } from "@/lib/i18n";
 
 interface Crop { id: string; name: string; image: string; avgCwp: number; }
 
@@ -35,15 +31,12 @@ const envParams: EnvParam[] = [
 ];
 
 const CropWaterProductivity = () => {
-  const [crops, setCrops] = useState<Crop[]>(initialCrops);
+  const { t } = useI18n();
+  const [crops] = useState<Crop[]>(initialCrops);
   const [selectedCrop, setSelectedCrop] = useState("wheat");
   const [params, setParams] = useState<Record<string, number>>(
     Object.fromEntries(envParams.map((p) => [p.key, p.defaultValue]))
   );
-
-  const [editCrop, setEditCrop] = useState<Crop | null>(null);
-  const [cropForm, setCropForm] = useState<Crop | null>(null);
-  const [deleteCropId, setDeleteCropId] = useState<string | null>(null);
 
   const crop = crops.find((c) => c.id === selectedCrop) || crops[0];
 
@@ -60,49 +53,28 @@ const CropWaterProductivity = () => {
     return { cwp: Number(cwp.toFixed(2)), uncertainty: Number(uncertainty.toFixed(2)) };
   }, [params, crop]);
 
-  const qualityLabel = prediction.cwp >= 5 ? "Excellent" : prediction.cwp >= 3.5 ? "Good" : prediction.cwp >= 2 ? "Fair" : "Poor";
+  const qualityLabel = prediction.cwp >= 5 ? t("excellent") : prediction.cwp >= 3.5 ? t("good") : prediction.cwp >= 2 ? t("fair") : t("poor");
   const qualityColor = prediction.cwp >= 5 ? "text-success" : prediction.cwp >= 3.5 ? "text-primary" : prediction.cwp >= 2 ? "text-warning" : "text-destructive";
   const productivityPercent = Math.min(100, (prediction.cwp / 6) * 100);
 
   const handleParamChange = (key: string, value: number[]) => { setParams((prev) => ({ ...prev, [key]: value[0] })); };
 
-  const openEditCrop = (c: Crop) => { setEditCrop(c); setCropForm({ ...c }); };
-  const saveEditCrop = () => { if (!cropForm) return; setCrops((prev) => prev.map((c) => (c.id === cropForm.id ? cropForm : c))); setEditCrop(null); setCropForm(null); };
-  const confirmDeleteCrop = () => {
-    if (deleteCropId !== null) {
-      setCrops((prev) => prev.filter((c) => c.id !== deleteCropId));
-      if (selectedCrop === deleteCropId) {
-        const remaining = crops.filter((c) => c.id !== deleteCropId);
-        if (remaining.length > 0) setSelectedCrop(remaining[0].id);
-      }
-      setDeleteCropId(null);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Crop Water Productivity Predictor</h1>
-        <p className="text-muted-foreground mt-1">Adjust environmental parameters to predict crop water productivity</p>
+        <h1 className="text-2xl font-bold text-foreground">{t("cwpPredictor")}</h1>
+        <p className="text-muted-foreground mt-1">{t("cwpDesc")}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Crop Selection</CardTitle>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditCrop(crop)}><Pencil className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteCropId(crop.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
-                </div>
-              </div>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-lg">{t("cropSelection")}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
                 <img src={crop.image} alt={crop.name} className="w-14 h-14 rounded-lg object-cover" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Selected Crop</p>
+                  <p className="text-sm text-muted-foreground">{t("selectedCrop")}</p>
                   <p className="font-semibold text-primary">{crop.name}</p>
                 </div>
               </div>
@@ -123,7 +95,7 @@ const CropWaterProductivity = () => {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-lg">Environmental Parameters</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">{t("envParams")}</CardTitle></CardHeader>
             <CardContent className="space-y-6">
               {envParams.map((param) => (
                 <div key={param.key} className="space-y-2">
@@ -142,71 +114,50 @@ const CropWaterProductivity = () => {
         <div className="space-y-6">
           <Card className="border-primary/30 overflow-hidden">
             <CardHeader className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-              <CardTitle className="flex items-center gap-2 text-lg"><TrendingUp className="w-5 h-5" />Prediction Results</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-lg"><TrendingUp className="w-5 h-5" />{t("predictionResults")}</CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="text-center">
-                <p className="text-sm font-semibold text-foreground mb-2">Selected Crop</p>
+                <p className="text-sm font-semibold text-foreground mb-2">{t("selectedCrop")}</p>
                 <img src={crop.image} alt={crop.name} className="w-16 h-16 rounded-full object-cover mx-auto mb-2" />
                 <Badge className="bg-primary text-primary-foreground">{crop.name}</Badge>
               </div>
               <div className="text-center">
-                <p className="text-sm font-semibold text-foreground">Predicted CWP</p>
+                <p className="text-sm font-semibold text-foreground">{t("predictedCWP")}</p>
                 <div className="mt-2 p-4 rounded-xl bg-muted/50 border"><p className="text-4xl font-bold text-primary">{prediction.cwp}</p><p className="text-sm text-muted-foreground">± {prediction.uncertainty}</p></div>
               </div>
               <div className="text-center">
-                <p className="text-sm font-semibold text-foreground">Quality Assessment</p>
+                <p className="text-sm font-semibold text-foreground">{t("qualityAssessment")}</p>
                 <div className="mt-2 p-3 rounded-lg bg-muted/30 border"><p className={`text-lg font-bold ${qualityColor}`}>{qualityLabel}</p></div>
               </div>
               <div>
-                <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-foreground">Productivity Index</span><TrendingUp className="w-4 h-4 text-primary" /></div>
+                <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-foreground">{t("productivityIndex")}</span><TrendingUp className="w-4 h-4 text-primary" /></div>
                 <Progress value={productivityPercent} className="h-3" />
                 <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>0</span><span>6+</span></div>
               </div>
               <div className="p-3 rounded-lg bg-muted/30 border text-center">
-                <p className="text-xs font-medium text-foreground">Crop Water Productivity (CWP)</p>
-                <p className="text-xs text-muted-foreground mt-1">Measured in kg/m³ of water used</p>
+                <p className="text-xs font-medium text-foreground">{t("cwpLabel")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("cwpMeasured")}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-lg">Historical Data</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">{t("historicalData")}</CardTitle></CardHeader>
             <CardContent>
               <div className="text-center p-4 rounded-xl bg-muted/30 border">
-                <p className="text-sm text-muted-foreground">Average CWP (Last 5 Years)</p>
+                <p className="text-sm text-muted-foreground">{t("avgCwpLabel")}</p>
                 <p className="text-3xl font-bold text-foreground mt-1">{crop.avgCwp}</p>
-                <p className="text-xs text-muted-foreground mt-1">kg/m³ of water</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("cwpUnit")}</p>
               </div>
               <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                <p className="text-xs font-medium text-primary">5-Year Historical Average</p>
-                <p className="text-xs text-muted-foreground mt-1">Based on {crop.name} performance data</p>
+                <p className="text-xs font-medium text-primary">{t("fiveYearAvg")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("basedOn")} {crop.name} {t("performanceData")}</p>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      <Dialog open={!!editCrop} onOpenChange={(open) => { if (!open) { setEditCrop(null); setCropForm(null); } }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Edit Crop</DialogTitle></DialogHeader>
-          {cropForm && (
-            <div className="space-y-4">
-              <div><Label>Name</Label><Input value={cropForm.name} onChange={(e) => setCropForm({ ...cropForm, name: e.target.value })} /></div>
-              <div><Label>Image URL</Label><Input value={cropForm.image} onChange={(e) => setCropForm({ ...cropForm, image: e.target.value })} /></div>
-              <div><Label>Average CWP</Label><Input type="number" step="0.01" value={cropForm.avgCwp} onChange={(e) => setCropForm({ ...cropForm, avgCwp: Number(e.target.value) })} /></div>
-            </div>
-          )}
-          <DialogFooter><Button variant="outline" onClick={() => { setEditCrop(null); setCropForm(null); }}>Cancel</Button><Button onClick={saveEditCrop}>Save</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={deleteCropId !== null} onOpenChange={(open) => { if (!open) setDeleteCropId(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Crop</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this crop? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDeleteCrop} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
