@@ -3,25 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-interface Task { id: number; title: string; assignee: string; due: string; priority: string; status: string; }
-
-const initialTasks: Task[] = [
-  { id: 1, title: "Apply fertilizer to Plot A", assignee: "Rajesh Kumar", due: "Today", priority: "high", status: "pending" },
-  { id: 2, title: "Irrigation check for Plot B", assignee: "Suresh Reddy", due: "Today", priority: "medium", status: "in-progress" },
-  { id: 3, title: "Pest spray on Plot C", assignee: "Anita Sharma", due: "Tomorrow", priority: "high", status: "pending" },
-  { id: 4, title: "Soil sample collection", assignee: "Vikram Singh", due: "Mar 25", priority: "low", status: "pending" },
-  { id: 5, title: "Harvest scheduling for Plot D", assignee: "Rajesh Kumar", due: "Mar 26", priority: "medium", status: "completed" },
-  { id: 6, title: "Equipment maintenance", assignee: "Suresh Reddy", due: "Mar 24", priority: "low", status: "completed" },
-  { id: 7, title: "Seed procurement for next season", assignee: "Priya Patel", due: "Mar 28", priority: "medium", status: "pending" },
-];
+interface Task { id: string; title: string; assignee: string; due: string; priority: string; status: string; }
 
 const priorityStyles: Record<string, string> = {
   high: "bg-destructive/15 text-destructive border-0",
@@ -37,24 +29,43 @@ const statusIcons: Record<string, React.ReactNode> = {
 
 const Tasks = () => {
   const { t } = useI18n();
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [form, setForm] = useState<Task | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState<Omit<Task, "id">>({ title: "", assignee: "", due: "", priority: "medium", status: "pending" });
 
-  const openEdit = (task: Task) => { setEditTask(task); setForm({ ...task }); };
-  const saveEdit = () => { if (!form) return; setTasks((prev) => prev.map((t) => (t.id === form.id ? form : t))); setEditTask(null); setForm(null); };
-  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
-  const confirmDelete = () => {
-    if (form) { setTasks((prev) => prev.filter((t) => t.id !== form.id)); setShowDeleteConfirm(false); setEditTask(null); setForm(null); }
+  const fetchTasks = async () => {
+    const { data, error } = await supabase.from("tasks").select("*").order("created_at");
+    if (error) { toast.error("Failed to load tasks"); return; }
+    setTasks(data || []);
+    setLoading(false);
   };
-  const handleAdd = () => {
-    const newId = Math.max(0, ...tasks.map((t) => t.id)) + 1;
-    setTasks((prev) => [...prev, { ...addForm, id: newId }]);
-    setAddOpen(false);
+
+  useEffect(() => { fetchTasks(); }, []);
+
+  const openEdit = (task: Task) => { setEditTask(task); setForm({ ...task }); };
+  const saveEdit = async () => {
+    if (!form) return;
+    const { error } = await supabase.from("tasks").update({ title: form.title, assignee: form.assignee, due: form.due, priority: form.priority, status: form.status }).eq("id", form.id);
+    if (error) { toast.error("Failed to update"); return; }
+    toast.success("Task updated"); setEditTask(null); setForm(null); fetchTasks();
+  };
+  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
+  const confirmDelete = async () => {
+    if (!form) return;
+    const { error } = await supabase.from("tasks").delete().eq("id", form.id);
+    if (error) { toast.error("Failed to delete"); return; }
+    toast.success("Task deleted"); setShowDeleteConfirm(false); setEditTask(null); setForm(null); fetchTasks();
+  };
+  const handleAdd = async () => {
+    const { error } = await supabase.from("tasks").insert({ title: addForm.title, assignee: addForm.assignee, due: addForm.due, priority: addForm.priority, status: addForm.status });
+    if (error) { toast.error("Failed to add"); return; }
+    toast.success("Task added"); setAddOpen(false);
     setAddForm({ title: "", assignee: "", due: "", priority: "medium", status: "pending" });
+    fetchTasks();
   };
 
   const pending = tasks.filter((tk) => tk.status === "pending");
@@ -89,6 +100,8 @@ const Tasks = () => {
       </CardContent>
     </Card>
   );
+
+  if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="space-y-6">

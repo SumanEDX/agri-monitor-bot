@@ -3,47 +3,59 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-interface Plot { id: number; name: string; crop: string; area: string; farmer: string; health: number; stage: string; irrigation: string; soilMoisture: number; }
-
-const initialPlots: Plot[] = [
-  { id: 1, name: "Plot A", crop: "Wheat", area: "12 acres", farmer: "Rajesh Kumar", health: 92, stage: "Flowering", irrigation: "Drip", soilMoisture: 72 },
-  { id: 2, name: "Plot B", crop: "Rice", area: "8 acres", farmer: "Suresh Reddy", health: 78, stage: "Vegetative", irrigation: "Flood", soilMoisture: 88 },
-  { id: 3, name: "Plot C", crop: "Cotton", area: "15 acres", farmer: "Anita Sharma", health: 85, stage: "Boll Opening", irrigation: "Sprinkler", soilMoisture: 55 },
-  { id: 4, name: "Plot D", crop: "Corn", area: "10 acres", farmer: "Vikram Singh", health: 65, stage: "Tasseling", irrigation: "Drip", soilMoisture: 60 },
-  { id: 5, name: "Plot E", crop: "Soybean", area: "6 acres", farmer: "Anita Sharma", health: 88, stage: "Pod Filling", irrigation: "Rain-fed", soilMoisture: 45 },
-  { id: 6, name: "Plot F", crop: "Sugarcane", area: "20 acres", farmer: "Suresh Reddy", health: 91, stage: "Grand Growth", irrigation: "Drip", soilMoisture: 80 },
-];
+interface Plot { id: string; name: string; crop: string; area: string; farmer: string; health: number; stage: string; irrigation: string; soil_moisture: number; }
 
 const healthColor = (h: number) => (h >= 80 ? "text-primary" : h >= 60 ? "text-warning" : "text-destructive");
 
 const Plots = () => {
   const { t } = useI18n();
-  const [plots, setPlots] = useState<Plot[]>(initialPlots);
+  const [plots, setPlots] = useState<Plot[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editPlot, setEditPlot] = useState<Plot | null>(null);
   const [form, setForm] = useState<Plot | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState<Omit<Plot, "id">>({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soilMoisture: 50 });
+  const [addForm, setAddForm] = useState<Omit<Plot, "id">>({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soil_moisture: 50 });
+
+  const fetchPlots = async () => {
+    const { data, error } = await supabase.from("plots").select("*").order("created_at");
+    if (error) { toast.error("Failed to load plots"); return; }
+    setPlots(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchPlots(); }, []);
 
   const openEdit = (plot: Plot) => { setEditPlot(plot); setForm({ ...plot }); };
-  const saveEdit = () => { if (!form) return; setPlots((prev) => prev.map((p) => (p.id === form.id ? form : p))); setEditPlot(null); setForm(null); };
-  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
-  const confirmDelete = () => {
-    if (form) { setPlots((prev) => prev.filter((p) => p.id !== form.id)); setShowDeleteConfirm(false); setEditPlot(null); setForm(null); }
+  const saveEdit = async () => {
+    if (!form) return;
+    const { error } = await supabase.from("plots").update({ name: form.name, crop: form.crop, area: form.area, farmer: form.farmer, health: form.health, stage: form.stage, irrigation: form.irrigation, soil_moisture: form.soil_moisture }).eq("id", form.id);
+    if (error) { toast.error("Failed to update"); return; }
+    toast.success("Plot updated"); setEditPlot(null); setForm(null); fetchPlots();
   };
-  const handleAdd = () => {
-    const newId = Math.max(0, ...plots.map((p) => p.id)) + 1;
-    setPlots((prev) => [...prev, { ...addForm, id: newId }]);
-    setAddOpen(false);
-    setAddForm({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soilMoisture: 50 });
+  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
+  const confirmDelete = async () => {
+    if (!form) return;
+    const { error } = await supabase.from("plots").delete().eq("id", form.id);
+    if (error) { toast.error("Failed to delete"); return; }
+    toast.success("Plot deleted"); setShowDeleteConfirm(false); setEditPlot(null); setForm(null); fetchPlots();
+  };
+  const handleAdd = async () => {
+    const { error } = await supabase.from("plots").insert({ name: addForm.name, crop: addForm.crop, area: addForm.area, farmer: addForm.farmer, health: addForm.health, stage: addForm.stage, irrigation: addForm.irrigation, soil_moisture: addForm.soil_moisture });
+    if (error) { toast.error("Failed to add"); return; }
+    toast.success("Plot added"); setAddOpen(false);
+    setAddForm({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soil_moisture: 50 });
+    fetchPlots();
   };
 
   const plotFormFields = (f: any, setF: (v: any) => void) => (
@@ -55,9 +67,11 @@ const Plots = () => {
       <div><Label>{t("health")} (%)</Label><Input type="number" value={f.health} onChange={(e) => setF({ ...f, health: Number(e.target.value) })} /></div>
       <div><Label>{t("growthStage")}</Label><Input value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value })} /></div>
       <div><Label>{t("irrigation")}</Label><Select value={f.irrigation} onValueChange={(v) => setF({ ...f, irrigation: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Drip", "Flood", "Sprinkler", "Rain-fed"].map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent></Select></div>
-      <div><Label>{t("soilMoisture")} (%)</Label><Input type="number" value={f.soilMoisture} onChange={(e) => setF({ ...f, soilMoisture: Number(e.target.value) })} /></div>
+      <div><Label>{t("soilMoisture")} (%)</Label><Input type="number" value={f.soil_moisture} onChange={(e) => setF({ ...f, soil_moisture: Number(e.target.value) })} /></div>
     </div>
   );
+
+  if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="space-y-6">
@@ -83,7 +97,7 @@ const Plots = () => {
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-2 rounded-lg bg-muted"><Ruler className="w-4 h-4 mx-auto text-muted-foreground" /><p className="text-xs text-muted-foreground mt-1">{t("area")}</p><p className="text-sm font-semibold">{plot.area}</p></div>
                 <div className="p-2 rounded-lg bg-muted"><Leaf className="w-4 h-4 mx-auto text-primary" /><p className="text-xs text-muted-foreground mt-1">{t("growthStage")}</p><p className="text-sm font-semibold">{plot.stage}</p></div>
-                <div className="p-2 rounded-lg bg-muted"><Droplets className="w-4 h-4 mx-auto text-info" /><p className="text-xs text-muted-foreground mt-1">{t("soilMoisture")}</p><p className="text-sm font-semibold">{plot.soilMoisture}%</p></div>
+                <div className="p-2 rounded-lg bg-muted"><Droplets className="w-4 h-4 mx-auto text-info" /><p className="text-xs text-muted-foreground mt-1">{t("soilMoisture")}</p><p className="text-sm font-semibold">{plot.soil_moisture}%</p></div>
               </div>
               <div className="space-y-1.5">
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("cropHealth")}</span><span className={`font-semibold ${healthColor(plot.health)}`}>{plot.health}%</span></div>

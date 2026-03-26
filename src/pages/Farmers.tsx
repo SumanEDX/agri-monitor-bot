@@ -3,29 +3,23 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Farmer {
-  id: number; name: string; phone: string; location: string; crops: string[]; plots: number; status: string;
+  id: string; name: string; phone: string; location: string; crops: string[]; plots: number; status: string;
 }
-
-const initialFarmers: Farmer[] = [
-  { id: 1, name: "Rajesh Kumar", phone: "+91 98765 43210", location: "Nashik, Maharashtra", crops: ["Wheat", "Rice"], plots: 3, status: "active" },
-  { id: 2, name: "Anita Sharma", phone: "+91 98765 43211", location: "Indore, MP", crops: ["Cotton", "Soybean"], plots: 5, status: "active" },
-  { id: 3, name: "Vikram Singh", phone: "+91 98765 43212", location: "Jaipur, Rajasthan", crops: ["Corn"], plots: 2, status: "inactive" },
-  { id: 4, name: "Priya Patel", phone: "+91 98765 43213", location: "Ahmedabad, Gujarat", crops: ["Groundnut", "Cotton"], plots: 4, status: "active" },
-  { id: 5, name: "Suresh Reddy", phone: "+91 98765 43214", location: "Hyderabad, Telangana", crops: ["Rice", "Sugarcane"], plots: 6, status: "active" },
-  { id: 6, name: "Meena Devi", phone: "+91 98765 43215", location: "Patna, Bihar", crops: ["Wheat"], plots: 1, status: "inactive" },
-];
 
 const Farmers = () => {
   const { t } = useI18n();
-  const [farmers, setFarmers] = useState<Farmer[]>(initialFarmers);
+  const [farmers, setFarmers] = useState<Farmer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
   const [form, setForm] = useState<Farmer | null>(null);
@@ -33,23 +27,43 @@ const Farmers = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState<Omit<Farmer, "id">>({ name: "", phone: "", location: "", crops: [], plots: 0, status: "active" });
 
+  const fetchFarmers = async () => {
+    const { data, error } = await supabase.from("farmers").select("*").order("created_at");
+    if (error) { toast.error("Failed to load farmers"); return; }
+    setFarmers(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchFarmers(); }, []);
+
   const filtered = farmers.filter((f) => f.name.toLowerCase().includes(search.toLowerCase()));
 
   const openEdit = (farmer: Farmer) => { setEditFarmer(farmer); setForm({ ...farmer }); };
-  const saveEdit = () => { if (!form) return; setFarmers((prev) => prev.map((f) => (f.id === form.id ? form : f))); setEditFarmer(null); setForm(null); };
-  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
-  const confirmDelete = () => {
-    if (form) {
-      setFarmers((prev) => prev.filter((f) => f.id !== form.id));
-      setShowDeleteConfirm(false); setEditFarmer(null); setForm(null);
-    }
+  const saveEdit = async () => {
+    if (!form) return;
+    const { error } = await supabase.from("farmers").update({ name: form.name, phone: form.phone, location: form.location, crops: form.crops, plots: form.plots, status: form.status }).eq("id", form.id);
+    if (error) { toast.error("Failed to update"); return; }
+    toast.success("Farmer updated");
+    setEditFarmer(null); setForm(null); fetchFarmers();
   };
-  const handleAdd = () => {
-    const newId = Math.max(0, ...farmers.map((f) => f.id)) + 1;
-    setFarmers((prev) => [...prev, { ...addForm, id: newId }]);
+  const handleDeleteFromEdit = () => { setShowDeleteConfirm(true); };
+  const confirmDelete = async () => {
+    if (!form) return;
+    const { error } = await supabase.from("farmers").delete().eq("id", form.id);
+    if (error) { toast.error("Failed to delete"); return; }
+    toast.success("Farmer deleted");
+    setShowDeleteConfirm(false); setEditFarmer(null); setForm(null); fetchFarmers();
+  };
+  const handleAdd = async () => {
+    const { error } = await supabase.from("farmers").insert({ name: addForm.name, phone: addForm.phone, location: addForm.location, crops: addForm.crops, plots: addForm.plots, status: addForm.status });
+    if (error) { toast.error("Failed to add"); return; }
+    toast.success("Farmer added");
     setAddOpen(false);
     setAddForm({ name: "", phone: "", location: "", crops: [], plots: 0, status: "active" });
+    fetchFarmers();
   };
+
+  if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="space-y-6">
@@ -97,7 +111,6 @@ const Farmers = () => {
         ))}
       </div>
 
-      {/* Edit Dialog with Delete/Cancel/Save */}
       <Dialog open={!!editFarmer} onOpenChange={(open) => { if (!open) { setEditFarmer(null); setForm(null); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("editFarmer")}</DialogTitle></DialogHeader>
@@ -121,7 +134,6 @@ const Farmers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Add Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("addFarmer")}</DialogTitle></DialogHeader>
@@ -137,7 +149,6 @@ const Farmers = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>{t("deleteFarmer")}</AlertDialogTitle><AlertDialogDescription>{t("deleteConfirm")}</AlertDialogDescription></AlertDialogHeader>
