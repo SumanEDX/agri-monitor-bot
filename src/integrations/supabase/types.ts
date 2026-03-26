@@ -14,7 +14,147 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      farmers: {
+        Row: {
+          created_at: string
+          crops: string[]
+          id: string
+          location: string
+          name: string
+          phone: string
+          plots: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          crops?: string[]
+          id?: string
+          location?: string
+          name: string
+          phone?: string
+          plots?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          crops?: string[]
+          id?: string
+          location?: string
+          name?: string
+          phone?: string
+          plots?: number
+          status?: string
+        }
+        Relationships: []
+      }
+      plots: {
+        Row: {
+          area: string
+          created_at: string
+          crop: string
+          farmer: string
+          health: number
+          id: string
+          irrigation: string
+          name: string
+          soil_moisture: number
+          stage: string
+        }
+        Insert: {
+          area?: string
+          created_at?: string
+          crop?: string
+          farmer?: string
+          health?: number
+          id?: string
+          irrigation?: string
+          name: string
+          soil_moisture?: number
+          stage?: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          crop?: string
+          farmer?: string
+          health?: number
+          id?: string
+          irrigation?: string
+          name?: string
+          soil_moisture?: number
+          stage?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assignee: string
+          created_at: string
+          due: string
+          id: string
+          priority: string
+          status: string
+          title: string
+        }
+        Insert: {
+          assignee?: string
+          created_at?: string
+          due?: string
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          assignee?: string
+          created_at?: string
+          due?: string
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      water_sources: {
+        Row: {
+          capacity_liters: number
+          created_at: string
+          current_level_percent: number
+          id: string
+          last_checked: string
+          linked_plots: number
+          location: string
+          name: string
+          status: string
+          type: string
+        }
+        Insert: {
+          capacity_liters?: number
+          created_at?: string
+          current_level_percent?: number
+          id?: string
+          last_checked?: string
+          linked_plots?: number
+          location?: string
+          name: string
+          status?: string
+          type?: string
+        }
+        Update: {
+          capacity_liters?: number
+          created_at?: string
+          current_level_percent?: number
+          id?: string
+          last_checked?: string
+          linked_plots?: number
+          location?: string
+          name?: string
+          status?: string
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
