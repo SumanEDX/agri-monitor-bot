@@ -1,8 +1,12 @@
-import { Users, Map, ClipboardList, Sprout, TrendingUp, Droplets, Sun, ThermometerSun } from "lucide-react";
+import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const recentActivities = [
   { id: 1, action: "Fertilizer applied", plot: "Plot A - Wheat", time: "2 hours ago", status: "completed" },
@@ -12,20 +16,49 @@ const recentActivities = [
   { id: 5, action: "Soil testing", plot: "Plot E - Soybean", time: "1 day ago", status: "completed" },
 ];
 
-const cropHealth = [
-  { crop: "Wheat", health: 92, area: "12 acres" },
-  { crop: "Rice", health: 78, area: "8 acres" },
-  { crop: "Cotton", health: 85, area: "15 acres" },
-  { crop: "Corn", health: 65, area: "10 acres" },
-];
-
 const statusColors: Record<string, string> = {
   completed: "bg-primary/15 text-primary border-0",
   pending: "bg-warning/15 text-warning border-0",
   "in-progress": "bg-info/15 text-info border-0",
 };
 
+const fetchCount = async (table: "farmers" | "plots" | "tasks" | "water_sources") => {
+  const { count, error } = await supabase.from(table).select("*", { count: "exact", head: true });
+  if (error) throw error;
+  return count ?? 0;
+};
+
+const fetchCropHealth = async () => {
+  const { data, error } = await supabase.from("plots").select("crop, health, area");
+  if (error) throw error;
+  return data ?? [];
+};
+
 const Dashboard = () => {
+  const queryClient = useQueryClient();
+
+  const { data: farmersCount = 0 } = useQuery({ queryKey: ["farmers-count"], queryFn: () => fetchCount("farmers") });
+  const { data: plotsCount = 0 } = useQuery({ queryKey: ["plots-count"], queryFn: () => fetchCount("plots") });
+  const { data: tasksCount = 0 } = useQuery({ queryKey: ["tasks-count"], queryFn: () => fetchCount("tasks") });
+  const { data: waterSourcesCount = 0 } = useQuery({ queryKey: ["water-sources-count"], queryFn: () => fetchCount("water_sources") });
+  const { data: cropHealth = [] } = useQuery({ queryKey: ["crop-health"], queryFn: fetchCropHealth });
+
+  // Realtime subscriptions to auto-update counts
+  useEffect(() => {
+    const channels = ["farmers", "plots", "tasks", "water_sources"].map((table) =>
+      supabase
+        .channel(`dashboard-${table}`)
+        .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+          queryClient.invalidateQueries({ queryKey: [`${table === "water_sources" ? "water-sources" : table}-count`] });
+          if (table === "plots") {
+            queryClient.invalidateQueries({ queryKey: ["crop-health"] });
+          }
+        })
+        .subscribe()
+    );
+    return () => { channels.forEach((ch) => supabase.removeChannel(ch)); };
+  }, [queryClient]);
+
   return (
     <div className="space-y-8">
       <div>
@@ -33,15 +66,13 @@ const Dashboard = () => {
         <p className="text-muted-foreground mt-1">Welcome back! Here's your farm overview.</p>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Total Farmers" value={248} change="+12 this month" icon={Users} variant="primary" />
-        <StatCard title="Active Plots" value={156} change="45 acres total" icon={Map} variant="info" />
-        <StatCard title="Pending Tasks" value={23} change="8 due today" icon={ClipboardList} variant="warning" />
-        <StatCard title="Crop Varieties" value={18} change="3 new this season" icon={Sprout} variant="default" />
+        <StatCard title="Total Farmers" value={farmersCount} change="Live from database" icon={Users} variant="primary" />
+        <StatCard title="Active Plots" value={plotsCount} change="Live from database" icon={Map} variant="info" />
+        <StatCard title="Total Tasks" value={tasksCount} change="Live from database" icon={ClipboardList} variant="warning" />
+        <StatCard title="Water Sources" value={waterSourcesCount} change="Live from database" icon={DropletsIcon} variant="default" />
       </div>
 
-      {/* Weather + Crop Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="lg:col-span-1 border-border">
           <CardHeader className="pb-3">
@@ -80,12 +111,15 @@ const Dashboard = () => {
             <CardTitle className="text-lg">Crop Health Overview</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
-            {cropHealth.map((crop) => (
-              <div key={crop.crop} className="space-y-2">
+            {cropHealth.length === 0 && (
+              <p className="text-sm text-muted-foreground">No plots found. Add plots to see crop health.</p>
+            )}
+            {cropHealth.map((crop, i) => (
+              <div key={i} className="space-y-2">
                 <div className="flex justify-between items-center">
                   <div>
-                    <span className="font-medium text-sm">{crop.crop}</span>
-                    <span className="text-xs text-muted-foreground ml-2">({crop.area})</span>
+                    <span className="font-medium text-sm">{crop.crop || "Unknown"}</span>
+                    <span className="text-xs text-muted-foreground ml-2">({crop.area || "N/A"})</span>
                   </div>
                   <span className={`text-sm font-semibold ${crop.health >= 80 ? "text-primary" : crop.health >= 60 ? "text-warning" : "text-destructive"}`}>
                     {crop.health}%
@@ -98,7 +132,6 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Recent Activities */}
       <Card className="border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Recent Activities</CardTitle>
