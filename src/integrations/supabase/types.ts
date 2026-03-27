@@ -56,6 +56,8 @@ export type Database = {
           health: number
           id: string
           irrigation: string
+          latitude: number | null
+          longitude: number | null
           name: string
           soil_moisture: number
           stage: string
@@ -68,6 +70,8 @@ export type Database = {
           health?: number
           id?: string
           irrigation?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           soil_moisture?: number
           stage?: string
@@ -80,6 +84,8 @@ export type Database = {
           health?: number
           id?: string
           irrigation?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           soil_moisture?: number
           stage?: string
@@ -123,8 +129,10 @@ export type Database = {
           current_level_percent: number
           id: string
           last_checked: string
+          latitude: number | null
           linked_plots: number
           location: string
+          longitude: number | null
           name: string
           status: string
           type: string
@@ -135,8 +143,10 @@ export type Database = {
           current_level_percent?: number
           id?: string
           last_checked?: string
+          latitude?: number | null
           linked_plots?: number
           location?: string
+          longitude?: number | null
           name: string
           status?: string
           type?: string
@@ -147,8 +157,10 @@ export type Database = {
           current_level_percent?: number
           id?: string
           last_checked?: string
+          latitude?: number | null
           linked_plots?: number
           location?: string
+          longitude?: number | null
           name?: string
           status?: string
           type?: string
