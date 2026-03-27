@@ -11,11 +11,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import MapView from "@/components/MapView";
 
 interface WaterSource {
   id: string; name: string; type: string;
   location: string; capacity_liters: number; current_level_percent: number;
   status: string; linked_plots: number; last_checked: string;
+  latitude: number | null; longitude: number | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -36,7 +38,8 @@ const WaterSources = () => {
   const [form, setForm] = useState<WaterSource | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState<Omit<WaterSource, "id">>({ name: "", type: "Borewell", location: "", capacity_liters: 0, current_level_percent: 0, status: "Active", linked_plots: 0, last_checked: new Date().toISOString().split("T")[0] });
+  const [addForm, setAddForm] = useState<Omit<WaterSource, "id">>({ name: "", type: "Borewell", location: "", capacity_liters: 0, current_level_percent: 0, status: "Active", linked_plots: 0, last_checked: new Date().toISOString().split("T")[0], latitude: null, longitude: null });
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
 
   const fetchSources = async () => {
     const { data, error } = await supabase.from("water_sources").select("*").order("created_at");
@@ -50,7 +53,7 @@ const WaterSources = () => {
   const openEdit = (s: WaterSource) => { setEditSource(s); setForm({ ...s }); };
   const saveEdit = async () => {
     if (!form) return;
-    const { error } = await supabase.from("water_sources").update({ name: form.name, type: form.type, location: form.location, capacity_liters: form.capacity_liters, current_level_percent: form.current_level_percent, status: form.status, linked_plots: form.linked_plots, last_checked: form.last_checked }).eq("id", form.id);
+    const { error } = await supabase.from("water_sources").update({ name: form.name, type: form.type, location: form.location, capacity_liters: form.capacity_liters, current_level_percent: form.current_level_percent, status: form.status, linked_plots: form.linked_plots, last_checked: form.last_checked, latitude: form.latitude, longitude: form.longitude }).eq("id", form.id);
     if (error) { toast.error("Failed to update"); return; }
     toast.success("Water source updated"); setEditSource(null); setForm(null); fetchSources();
   };
@@ -62,10 +65,10 @@ const WaterSources = () => {
     toast.success("Water source deleted"); setShowDeleteConfirm(false); setEditSource(null); setForm(null); fetchSources();
   };
   const handleAdd = async () => {
-    const { error } = await supabase.from("water_sources").insert({ name: addForm.name, type: addForm.type, location: addForm.location, capacity_liters: addForm.capacity_liters, current_level_percent: addForm.current_level_percent, status: addForm.status, linked_plots: addForm.linked_plots, last_checked: addForm.last_checked });
+    const { error } = await supabase.from("water_sources").insert({ name: addForm.name, type: addForm.type, location: addForm.location, capacity_liters: addForm.capacity_liters, current_level_percent: addForm.current_level_percent, status: addForm.status, linked_plots: addForm.linked_plots, last_checked: addForm.last_checked, latitude: addForm.latitude, longitude: addForm.longitude });
     if (error) { toast.error("Failed to add"); return; }
     toast.success("Water source added"); setAddOpen(false);
-    setAddForm({ name: "", type: "Borewell", location: "", capacity_liters: 0, current_level_percent: 0, status: "Active", linked_plots: 0, last_checked: new Date().toISOString().split("T")[0] });
+    setAddForm({ name: "", type: "Borewell", location: "", capacity_liters: 0, current_level_percent: 0, status: "Active", linked_plots: 0, last_checked: new Date().toISOString().split("T")[0], latitude: null, longitude: null });
     fetchSources();
   };
 
@@ -88,8 +91,20 @@ const WaterSources = () => {
       <div><Label>{t("status")}</Label><Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Active", "Low", "Dry", "Maintenance"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
       <div><Label>{t("linkedPlotsCount")}</Label><Input type="number" value={f.linked_plots} onChange={(e) => setF({ ...f, linked_plots: Number(e.target.value) })} /></div>
       <div><Label>{t("lastChecked")}</Label><Input type="date" value={f.last_checked} onChange={(e) => setF({ ...f, last_checked: e.target.value })} /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>Latitude</Label><Input type="number" step="any" placeholder="e.g. 20.5937" value={f.latitude ?? ""} onChange={(e) => setF({ ...f, latitude: e.target.value ? Number(e.target.value) : null })} /></div>
+        <div><Label>Longitude</Label><Input type="number" step="any" placeholder="e.g. 78.9629" value={f.longitude ?? ""} onChange={(e) => setF({ ...f, longitude: e.target.value ? Number(e.target.value) : null })} /></div>
+      </div>
     </div>
   );
+
+  const mapMarkers = sources.filter(s => s.latitude && s.longitude).map(s => ({
+    id: s.id,
+    name: s.name,
+    latitude: s.latitude!,
+    longitude: s.longitude!,
+    description: `${s.type} · ${s.location} · ${s.status}`,
+  }));
 
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 
@@ -110,6 +125,14 @@ const WaterSources = () => {
         <Card><CardContent className="pt-5 pb-4 flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center"><TrendingUp className="w-5 h-5 text-primary" /></div><div><p className="text-2xl font-bold text-foreground">{totalLinkedPlots}</p><p className="text-xs text-muted-foreground">{t("linkedPlots")}</p></div></CardContent></Card>
       </div>
 
+      {/* Map */}
+      <MapView
+        markers={mapMarkers}
+        selectedId={selectedSourceId}
+        onMarkerClick={(id) => setSelectedSourceId(id)}
+        height="350px"
+      />
+
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input placeholder={t("searchWaterSources")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
@@ -117,12 +140,16 @@ const WaterSources = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((source) => (
-          <Card key={source.id} className="hover:shadow-md transition-shadow">
+          <Card
+            key={source.id}
+            className={`hover:shadow-md transition-shadow cursor-pointer ${selectedSourceId === source.id ? "ring-2 ring-primary" : ""}`}
+            onClick={() => source.latitude && source.longitude && setSelectedSourceId(source.id)}
+          >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2"><Droplets className="w-5 h-5 text-primary" /><CardTitle className="text-base">{source.name}</CardTitle></div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(source)}><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(source); }}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Badge variant="outline" className={statusColor[source.status] || ""}>{source.status}</Badge>
                 </div>
               </div>
@@ -137,7 +164,10 @@ const WaterSources = () => {
                 <div className="h-2.5 w-full rounded-full bg-secondary overflow-hidden"><div className={`h-full rounded-full transition-all ${levelColor(source.current_level_percent)}`} style={{ width: `${source.current_level_percent}%` }} /></div>
               </div>
               <div className="flex justify-between text-xs text-muted-foreground pt-1"><span>{t("capacity")}: {(source.capacity_liters / 1000).toFixed(0)}k L</span><span>{source.linked_plots} {t("plotsLinked")}</span></div>
-              <p className="text-xs text-muted-foreground">{t("lastChecked")}: {source.last_checked}</p>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{t("lastChecked")}: {source.last_checked}</span>
+                {source.latitude && source.longitude && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}</span>}
+              </div>
             </CardContent>
           </Card>
         ))}

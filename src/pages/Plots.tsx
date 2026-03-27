@@ -1,4 +1,4 @@
-import { Plus, Ruler, Droplets, Leaf, Pencil } from "lucide-react";
+import { Plus, Ruler, Droplets, Leaf, Pencil, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import MapView from "@/components/MapView";
 
-interface Plot { id: string; name: string; crop: string; area: string; farmer: string; health: number; stage: string; irrigation: string; soil_moisture: number; }
+interface Plot { id: string; name: string; crop: string; area: string; farmer: string; health: number; stage: string; irrigation: string; soil_moisture: number; latitude: number | null; longitude: number | null; }
 
 const healthColor = (h: number) => (h >= 80 ? "text-primary" : h >= 60 ? "text-warning" : "text-destructive");
 
@@ -25,7 +26,8 @@ const Plots = () => {
   const [form, setForm] = useState<Plot | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState<Omit<Plot, "id">>({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soil_moisture: 50 });
+  const [addForm, setAddForm] = useState<Omit<Plot, "id">>({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soil_moisture: 50, latitude: null, longitude: null });
+  const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null);
 
   const fetchPlots = async () => {
     const { data, error } = await supabase.from("plots").select("*").order("created_at");
@@ -39,7 +41,7 @@ const Plots = () => {
   const openEdit = (plot: Plot) => { setEditPlot(plot); setForm({ ...plot }); };
   const saveEdit = async () => {
     if (!form) return;
-    const { error } = await supabase.from("plots").update({ name: form.name, crop: form.crop, area: form.area, farmer: form.farmer, health: form.health, stage: form.stage, irrigation: form.irrigation, soil_moisture: form.soil_moisture }).eq("id", form.id);
+    const { error } = await supabase.from("plots").update({ name: form.name, crop: form.crop, area: form.area, farmer: form.farmer, health: form.health, stage: form.stage, irrigation: form.irrigation, soil_moisture: form.soil_moisture, latitude: form.latitude, longitude: form.longitude }).eq("id", form.id);
     if (error) { toast.error("Failed to update"); return; }
     toast.success("Plot updated"); setEditPlot(null); setForm(null); fetchPlots();
   };
@@ -51,10 +53,10 @@ const Plots = () => {
     toast.success("Plot deleted"); setShowDeleteConfirm(false); setEditPlot(null); setForm(null); fetchPlots();
   };
   const handleAdd = async () => {
-    const { error } = await supabase.from("plots").insert({ name: addForm.name, crop: addForm.crop, area: addForm.area, farmer: addForm.farmer, health: addForm.health, stage: addForm.stage, irrigation: addForm.irrigation, soil_moisture: addForm.soil_moisture });
+    const { error } = await supabase.from("plots").insert({ name: addForm.name, crop: addForm.crop, area: addForm.area, farmer: addForm.farmer, health: addForm.health, stage: addForm.stage, irrigation: addForm.irrigation, soil_moisture: addForm.soil_moisture, latitude: addForm.latitude, longitude: addForm.longitude });
     if (error) { toast.error("Failed to add"); return; }
     toast.success("Plot added"); setAddOpen(false);
-    setAddForm({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soil_moisture: 50 });
+    setAddForm({ name: "", crop: "", area: "", farmer: "", health: 80, stage: "", irrigation: "Drip", soil_moisture: 50, latitude: null, longitude: null });
     fetchPlots();
   };
 
@@ -68,8 +70,20 @@ const Plots = () => {
       <div><Label>{t("growthStage")}</Label><Input value={f.stage} onChange={(e) => setF({ ...f, stage: e.target.value })} /></div>
       <div><Label>{t("irrigation")}</Label><Select value={f.irrigation} onValueChange={(v) => setF({ ...f, irrigation: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["Drip", "Flood", "Sprinkler", "Rain-fed"].map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent></Select></div>
       <div><Label>{t("soilMoisture")} (%)</Label><Input type="number" value={f.soil_moisture} onChange={(e) => setF({ ...f, soil_moisture: Number(e.target.value) })} /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>Latitude</Label><Input type="number" step="any" placeholder="e.g. 20.5937" value={f.latitude ?? ""} onChange={(e) => setF({ ...f, latitude: e.target.value ? Number(e.target.value) : null })} /></div>
+        <div><Label>Longitude</Label><Input type="number" step="any" placeholder="e.g. 78.9629" value={f.longitude ?? ""} onChange={(e) => setF({ ...f, longitude: e.target.value ? Number(e.target.value) : null })} /></div>
+      </div>
     </div>
   );
+
+  const mapMarkers = plots.filter(p => p.latitude && p.longitude).map(p => ({
+    id: p.id,
+    name: p.name,
+    latitude: p.latitude!,
+    longitude: p.longitude!,
+    description: `${p.crop} · ${p.area} · ${p.farmer}`,
+  }));
 
   if (loading) return <div className="flex items-center justify-center py-12 text-muted-foreground">Loading...</div>;
 
@@ -83,14 +97,26 @@ const Plots = () => {
         <Button className="gap-2" onClick={() => setAddOpen(true)}><Plus className="w-4 h-4" /> {t("addPlot")}</Button>
       </div>
 
+      {/* Map */}
+      <MapView
+        markers={mapMarkers}
+        selectedId={selectedPlotId}
+        onMarkerClick={(id) => setSelectedPlotId(id)}
+        height="350px"
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {plots.map((plot) => (
-          <Card key={plot.id} className="border-border hover:shadow-md transition-shadow">
+          <Card
+            key={plot.id}
+            className={`border-border hover:shadow-md transition-shadow cursor-pointer ${selectedPlotId === plot.id ? "ring-2 ring-primary" : ""}`}
+            onClick={() => plot.latitude && plot.longitude && setSelectedPlotId(plot.id)}
+          >
             <CardContent className="p-5 space-y-4">
               <div className="flex justify-between items-start">
                 <div><h3 className="font-semibold text-lg">{plot.name}</h3><p className="text-sm text-muted-foreground">{plot.farmer}</p></div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(plot)}><Pencil className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); openEdit(plot); }}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Badge variant="secondary">{plot.crop}</Badge>
                 </div>
               </div>
@@ -103,7 +129,10 @@ const Plots = () => {
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("cropHealth")}</span><span className={`font-semibold ${healthColor(plot.health)}`}>{plot.health}%</span></div>
                 <Progress value={plot.health} className="h-2" />
               </div>
-              <div className="flex justify-between items-center text-xs text-muted-foreground"><span>{t("irrigation")}: {plot.irrigation}</span></div>
+              <div className="flex justify-between items-center text-xs text-muted-foreground">
+                <span>{t("irrigation")}: {plot.irrigation}</span>
+                {plot.latitude && plot.longitude && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {plot.latitude.toFixed(4)}, {plot.longitude.toFixed(4)}</span>}
+              </div>
             </CardContent>
           </Card>
         ))}
