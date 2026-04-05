@@ -1,12 +1,43 @@
-import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets } from "lucide-react";
+import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2 } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+
+const NASHIK_LAT = 19.9975;
+const NASHIK_LNG = 73.7898;
+
+const wmoToCondition = (code: number): { condition: string; iconName: string } => {
+  if (code === 0) return { condition: "Clear Sky", iconName: "Sun" };
+  if (code <= 3) return { condition: "Partly Cloudy", iconName: "Cloud" };
+  if (code <= 48) return { condition: "Foggy", iconName: "Cloud" };
+  if (code <= 67) return { condition: "Rain", iconName: "CloudRain" };
+  if (code <= 77) return { condition: "Snow", iconName: "Cloud" };
+  if (code <= 99) return { condition: "Thunderstorm", iconName: "CloudRain" };
+  return { condition: "Unknown", iconName: "Cloud" };
+};
+
+const weatherIconMap: Record<string, React.FC<{ className?: string }>> = { Sun, Cloud, CloudRain };
+
+const fetchWeatherData = async () => {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${NASHIK_LAT}&longitude=${NASHIK_LNG}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=Asia%2FKolkata`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch weather");
+  const data = await res.json();
+  const c = data.current;
+  const { condition, iconName } = wmoToCondition(c.weather_code);
+  return {
+    temp: Math.round(c.temperature_2m),
+    condition,
+    iconName,
+    humidity: c.relative_humidity_2m,
+    feelsLike: Math.round(c.apparent_temperature),
+    wind: Math.round(c.wind_speed_10m),
+  };
+};
 
 const recentActivities = [
   { id: 1, action: "Fertilizer applied", plot: "Plot A - Wheat", time: "2 hours ago", status: "completed" },
