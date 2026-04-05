@@ -119,25 +119,39 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-4">
-              <p className="text-5xl font-bold text-foreground">28°C</p>
-              <p className="text-muted-foreground mt-1">Partly Cloudy</p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              <div className="text-center p-3 rounded-lg bg-muted">
-                <Droplets className="w-4 h-4 mx-auto text-info" />
-                <p className="text-xs text-muted-foreground mt-1">Humidity</p>
-                <p className="text-sm font-semibold">65%</p>
+            {weatherLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-              <div className="text-center p-3 rounded-lg bg-muted">
-                <ThermometerSun className="w-4 h-4 mx-auto text-destructive" />
-                <p className="text-xs text-muted-foreground mt-1">Heat Index</p>
-                <p className="text-sm font-semibold">31°C</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-muted">
-                <TrendingUp className="w-4 h-4 mx-auto text-primary" />
-                <p className="text-xs text-muted-foreground mt-1">Wind</p>
-                <p className="text-sm font-semibold">12 km/h</p>
+            ) : weather ? (
+              <>
+                <div className="text-center py-4">
+                  {(() => { const WIcon = weatherIconMap[weather.iconName] || Sun; return <WIcon className="w-10 h-10 mx-auto text-warning/70 mb-2" />; })()}
+                  <p className="text-5xl font-bold text-foreground">{weather.temp}°C</p>
+                  <p className="text-muted-foreground mt-1">{weather.condition}</p>
+                  <p className="text-xs text-muted-foreground">Nashik, Maharashtra</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <Droplets className="w-4 h-4 mx-auto text-info" />
+                    <p className="text-xs text-muted-foreground mt-1">Humidity</p>
+                    <p className="text-sm font-semibold">{weather.humidity}%</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <ThermometerSun className="w-4 h-4 mx-auto text-destructive" />
+                    <p className="text-xs text-muted-foreground mt-1">Feels Like</p>
+                    <p className="text-sm font-semibold">{weather.feelsLike}°C</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <TrendingUp className="w-4 h-4 mx-auto text-primary" />
+                    <p className="text-xs text-muted-foreground mt-1">Wind</p>
+                    <p className="text-sm font-semibold">{weather.wind} km/h</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Unable to load weather</p>
+            )}
               </div>
             </div>
           </CardContent>
