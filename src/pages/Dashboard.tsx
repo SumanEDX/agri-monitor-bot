@@ -67,6 +67,12 @@ const fetchCropHealth = async () => {
 
 const Dashboard = () => {
   const queryClient = useQueryClient();
+  const { data: weather, isLoading: weatherLoading } = useQuery({
+    queryKey: ["dashboard-weather"],
+    queryFn: fetchWeatherData,
+    refetchInterval: 15 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const { data: farmersCount = 0 } = useQuery({ queryKey: ["farmers-count"], queryFn: () => fetchCount("farmers") });
   const { data: plotsCount = 0 } = useQuery({ queryKey: ["plots-count"], queryFn: () => fetchCount("plots") });
