@@ -152,8 +152,6 @@ const Dashboard = () => {
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">Unable to load weather</p>
             )}
-              </div>
-            </div>
           </CardContent>
         </Card>
 
