@@ -1,12 +1,43 @@
-import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets } from "lucide-react";
+import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2 } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+
+const NASHIK_LAT = 19.9975;
+const NASHIK_LNG = 73.7898;
+
+const wmoToCondition = (code: number): { condition: string; iconName: string } => {
+  if (code === 0) return { condition: "Clear Sky", iconName: "Sun" };
+  if (code <= 3) return { condition: "Partly Cloudy", iconName: "Cloud" };
+  if (code <= 48) return { condition: "Foggy", iconName: "Cloud" };
+  if (code <= 67) return { condition: "Rain", iconName: "CloudRain" };
+  if (code <= 77) return { condition: "Snow", iconName: "Cloud" };
+  if (code <= 99) return { condition: "Thunderstorm", iconName: "CloudRain" };
+  return { condition: "Unknown", iconName: "Cloud" };
+};
+
+const weatherIconMap: Record<string, React.FC<{ className?: string }>> = { Sun, Cloud, CloudRain };
+
+const fetchWeatherData = async () => {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${NASHIK_LAT}&longitude=${NASHIK_LNG}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=Asia%2FKolkata`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch weather");
+  const data = await res.json();
+  const c = data.current;
+  const { condition, iconName } = wmoToCondition(c.weather_code);
+  return {
+    temp: Math.round(c.temperature_2m),
+    condition,
+    iconName,
+    humidity: c.relative_humidity_2m,
+    feelsLike: Math.round(c.apparent_temperature),
+    wind: Math.round(c.wind_speed_10m),
+  };
+};
 
 const recentActivities = [
   { id: 1, action: "Fertilizer applied", plot: "Plot A - Wheat", time: "2 hours ago", status: "completed" },
@@ -36,6 +67,12 @@ const fetchCropHealth = async () => {
 
 const Dashboard = () => {
   const queryClient = useQueryClient();
+  const { data: weather, isLoading: weatherLoading } = useQuery({
+    queryKey: ["dashboard-weather"],
+    queryFn: fetchWeatherData,
+    refetchInterval: 15 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const { data: farmersCount = 0 } = useQuery({ queryKey: ["farmers-count"], queryFn: () => fetchCount("farmers") });
   const { data: plotsCount = 0 } = useQuery({ queryKey: ["plots-count"], queryFn: () => fetchCount("plots") });
@@ -82,27 +119,39 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-4">
-              <p className="text-5xl font-bold text-foreground">28°C</p>
-              <p className="text-muted-foreground mt-1">Partly Cloudy</p>
-            </div>
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              <div className="text-center p-3 rounded-lg bg-muted">
-                <Droplets className="w-4 h-4 mx-auto text-info" />
-                <p className="text-xs text-muted-foreground mt-1">Humidity</p>
-                <p className="text-sm font-semibold">65%</p>
+            {weatherLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-              <div className="text-center p-3 rounded-lg bg-muted">
-                <ThermometerSun className="w-4 h-4 mx-auto text-destructive" />
-                <p className="text-xs text-muted-foreground mt-1">Heat Index</p>
-                <p className="text-sm font-semibold">31°C</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-muted">
-                <TrendingUp className="w-4 h-4 mx-auto text-primary" />
-                <p className="text-xs text-muted-foreground mt-1">Wind</p>
-                <p className="text-sm font-semibold">12 km/h</p>
-              </div>
-            </div>
+            ) : weather ? (
+              <>
+                <div className="text-center py-4">
+                  {(() => { const WIcon = weatherIconMap[weather.iconName] || Sun; return <WIcon className="w-10 h-10 mx-auto text-warning/70 mb-2" />; })()}
+                  <p className="text-5xl font-bold text-foreground">{weather.temp}°C</p>
+                  <p className="text-muted-foreground mt-1">{weather.condition}</p>
+                  <p className="text-xs text-muted-foreground">Nashik, Maharashtra</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <Droplets className="w-4 h-4 mx-auto text-info" />
+                    <p className="text-xs text-muted-foreground mt-1">Humidity</p>
+                    <p className="text-sm font-semibold">{weather.humidity}%</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <ThermometerSun className="w-4 h-4 mx-auto text-destructive" />
+                    <p className="text-xs text-muted-foreground mt-1">Feels Like</p>
+                    <p className="text-sm font-semibold">{weather.feelsLike}°C</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted">
+                    <TrendingUp className="w-4 h-4 mx-auto text-primary" />
+                    <p className="text-xs text-muted-foreground mt-1">Wind</p>
+                    <p className="text-sm font-semibold">{weather.wind} km/h</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Unable to load weather</p>
+            )}
           </CardContent>
         </Card>
 
