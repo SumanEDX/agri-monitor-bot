@@ -86,9 +86,9 @@ const FarmerChatbot: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
-  useEffect(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
