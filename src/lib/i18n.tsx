@@ -735,6 +735,15 @@ const translations: Record<Language, Record<string, string>> = {
     action: "చర్య",
     plot: "భూమి",
     time: "సమయం",
+    chatbotTitle: "స్మార్ట్‌ఫార్మ్ AI సహాయకుడు",
+    chatbotWelcome: "స్వాగతం! 🌾",
+    chatbotHint: "పంటలు, నీటిపారుదల, పురుగు నియంత్రణ, వాతావరణ సలహా లేదా ప్రభుత్వ పథకాల గురించి అడగండి.",
+    chatbotPlaceholder: "వ్యవసాయం గురించి అడగండి...",
+    chatbotError: "కనెక్ట్ చేయడం విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.",
+    voiceSearch: "వాయిస్ శోధన",
+    voiceListening: "వింటోంది...",
+    voiceNotSupported: "ఈ బ్రౌజర్‌లో వాయిస్ శోధన మద్దతు లేదు. దయచేసి Google Chrome ఉపయోగించండి.",
+    searchDashboard: "రైతులు, భూములు, పనులు వెతకండి...",
   },
 };
 
