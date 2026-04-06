@@ -108,7 +108,7 @@ const FarmerChatbot: React.FC = () => {
       return;
     }
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionAPI();
     recognition.lang = langToBcp47[language] || "en-IN";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
