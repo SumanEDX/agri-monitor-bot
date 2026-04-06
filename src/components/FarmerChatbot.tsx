@@ -1,23 +1,32 @@
-import React, { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Bot, User } from "lucide-react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { MessageCircle, X, Send, Loader2, Bot, User, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Language } from "@/lib/i18n";
 
 type Message = { role: "user" | "assistant"; content: string };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/farmer-chat`;
 
+const langToBcp47: Record<Language, string> = {
+  en: "en-IN",
+  hi: "hi-IN",
+  mr: "mr-IN",
+  ta: "ta-IN",
+  te: "te-IN",
+};
+
 async function streamChat({
   messages,
+  language,
   onDelta,
   onDone,
   onError,
 }: {
   messages: Message[];
+  language: string;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (err: string) => void;
@@ -28,7 +37,7 @@ async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, language }),
   });
 
   if (!resp.ok) {
@@ -70,18 +79,52 @@ async function streamChat({
 }
 
 const FarmerChatbot: React.FC = () => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const toggleVoice = useCallback(() => {
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setListening(false);
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      alert(t("voiceNotSupported"));
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = langToBcp47[language] || "en-IN";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0][0].transcript;
+      setInput((prev) => prev + transcript);
+      setListening(false);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  }, [listening, language, t]);
 
   const send = async () => {
     const text = input.trim();
@@ -107,6 +150,7 @@ const FarmerChatbot: React.FC = () => {
     try {
       await streamChat({
         messages: [...messages, userMsg],
+        language,
         onDelta: upsert,
         onDone: () => setLoading(false),
         onError: (err) => {
@@ -115,7 +159,7 @@ const FarmerChatbot: React.FC = () => {
         },
       });
     } catch {
-      upsert("⚠️ Failed to connect. Please try again.");
+      upsert(`⚠️ ${t("chatbotError")}`);
       setLoading(false);
     }
   };
@@ -129,7 +173,6 @@ const FarmerChatbot: React.FC = () => {
 
   return (
     <>
-      {/* Floating button */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -139,27 +182,24 @@ const FarmerChatbot: React.FC = () => {
         </button>
       )}
 
-      {/* Chat panel */}
       {open && (
         <div className="fixed bottom-6 right-6 z-50 w-[380px] h-[520px] rounded-2xl border border-border bg-background shadow-2xl flex flex-col overflow-hidden">
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-primary text-primary-foreground">
             <div className="flex items-center gap-2">
               <Bot className="w-5 h-5" />
-              <span className="font-semibold text-sm">SmartFarm AI Assistant</span>
+              <span className="font-semibold text-sm">{t("chatbotTitle")}</span>
             </div>
             <button onClick={() => setOpen(false)} className="hover:opacity-80">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {messages.length === 0 && (
               <div className="text-center text-muted-foreground text-sm mt-8 space-y-2">
                 <Bot className="w-10 h-10 mx-auto text-primary/60" />
-                <p className="font-medium">Welcome! 🌾</p>
-                <p className="text-xs">Ask me about crops, irrigation, pest control, weather advice, or government schemes.</p>
+                <p className="font-medium">{t("chatbotWelcome")}</p>
+                <p className="text-xs">{t("chatbotHint")}</p>
               </div>
             )}
             {messages.map((msg, i) => (
@@ -204,13 +244,21 @@ const FarmerChatbot: React.FC = () => {
             )}
           </div>
 
-          {/* Input */}
           <div className="border-t border-border p-3 flex gap-2">
+            <Button
+              size="icon"
+              variant={listening ? "destructive" : "outline"}
+              onClick={toggleVoice}
+              className="flex-shrink-0"
+              title={t("voiceSearch")}
+            >
+              {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about farming..."
+              placeholder={listening ? t("voiceListening") : t("chatbotPlaceholder")}
               className="min-h-[40px] max-h-[80px] resize-none text-sm"
               rows={1}
             />
