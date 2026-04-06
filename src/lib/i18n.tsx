@@ -149,6 +149,17 @@ const translations: Record<Language, Record<string, string>> = {
     action: "Action",
     plot: "Plot",
     time: "Time",
+    // Chatbot
+    chatbotTitle: "SmartFarm AI Assistant",
+    chatbotWelcome: "Welcome! 🌾",
+    chatbotHint: "Ask me about crops, irrigation, pest control, weather advice, or government schemes.",
+    chatbotPlaceholder: "Ask about farming...",
+    chatbotError: "Failed to connect. Please try again.",
+    // Voice Search
+    voiceSearch: "Voice Search",
+    voiceListening: "Listening...",
+    voiceNotSupported: "Voice search is not supported in this browser. Please use Google Chrome.",
+    searchDashboard: "Search farmers, plots, tasks...",
   },
   hi: {
     dashboard: "डैशबोर्ड",
