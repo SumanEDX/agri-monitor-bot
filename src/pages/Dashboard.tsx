@@ -1,14 +1,26 @@
-import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2 } from "lucide-react";
+import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2, Mic, MicOff, Search } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useI18n, type Language } from "@/lib/i18n";
 
 const NASHIK_LAT = 19.9975;
 const NASHIK_LNG = 73.7898;
+
+const langToBcp47: Record<Language, string> = {
+  en: "en-IN",
+  hi: "hi-IN",
+  mr: "mr-IN",
+  ta: "ta-IN",
+  te: "te-IN",
+};
 
 const wmoToCondition = (code: number): { condition: string; iconName: string } => {
   if (code === 0) return { condition: "Clear Sky", iconName: "Sun" };
@@ -67,6 +79,12 @@ const fetchCropHealth = async () => {
 
 const Dashboard = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { t, language } = useI18n();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   const { data: weather, isLoading: weatherLoading } = useQuery({
     queryKey: ["dashboard-weather"],
     queryFn: fetchWeatherData,
@@ -80,7 +98,6 @@ const Dashboard = () => {
   const { data: waterSourcesCount = 0 } = useQuery({ queryKey: ["water-sources-count"], queryFn: () => fetchCount("water_sources") });
   const { data: cropHealth = [] } = useQuery({ queryKey: ["crop-health"], queryFn: fetchCropHealth });
 
-  // Realtime subscriptions to auto-update counts
   useEffect(() => {
     const channels = ["farmers", "plots", "tasks", "water_sources"].map((table) =>
       supabase
@@ -96,18 +113,96 @@ const Dashboard = () => {
     return () => { channels.forEach((ch) => supabase.removeChannel(ch)); };
   }, [queryClient]);
 
+  const handleSearch = useCallback(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return;
+    if (q.includes("farmer") || q.includes("किसान") || q.includes("शेतकरी") || q.includes("விவசாயி") || q.includes("రైతు")) {
+      navigate("/farmers");
+    } else if (q.includes("plot") || q.includes("खेत") || q.includes("शेत") || q.includes("நிலம்") || q.includes("భూమి")) {
+      navigate("/plots");
+    } else if (q.includes("task") || q.includes("कार्य") || q.includes("काम") || q.includes("பணி") || q.includes("పని")) {
+      navigate("/tasks");
+    } else if (q.includes("water") || q.includes("जल") || q.includes("पाणी") || q.includes("நீர்") || q.includes("నీరు")) {
+      navigate("/water-sources");
+    } else if (q.includes("weather") || q.includes("मौसम") || q.includes("हवामान") || q.includes("வானிலை") || q.includes("వాతావరణ")) {
+      navigate("/weather");
+    } else {
+      navigate("/farmers");
+    }
+  }, [searchQuery, navigate]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleSearch();
+  };
+
+  const toggleVoice = useCallback(() => {
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setListening(false);
+      return;
+    }
+
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      alert(t("voiceNotSupported"));
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = langToBcp47[language] || "en-IN";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setSearchQuery(transcript);
+      setListening(false);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  }, [listening, language, t]);
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t("dashboard")}</h1>
         <p className="text-muted-foreground mt-1">Welcome back! Here's your farm overview.</p>
       </div>
 
+      {/* Voice-enabled Search Bar */}
+      <div className="flex gap-2 max-w-xl">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={listening ? t("voiceListening") : t("searchDashboard")}
+            className="pl-10"
+          />
+        </div>
+        <Button
+          size="icon"
+          variant={listening ? "destructive" : "outline"}
+          onClick={toggleVoice}
+          title={t("voiceSearch")}
+        >
+          {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+        </Button>
+        <Button onClick={handleSearch} disabled={!searchQuery.trim()}>
+          {t("search")}
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <StatCard title="Total Farmers" value={farmersCount} change="Live from database" icon={Users} variant="primary" />
+        <StatCard title={t("totalFarmers")} value={farmersCount} change="Live from database" icon={Users} variant="primary" />
         <StatCard title="Active Plots" value={plotsCount} change="Live from database" icon={Map} variant="info" />
         <StatCard title="Total Tasks" value={tasksCount} change="Live from database" icon={ClipboardList} variant="warning" />
-        <StatCard title="Water Sources" value={waterSourcesCount} change="Live from database" icon={DropletsIcon} variant="default" />
+        <StatCard title={t("waterSources")} value={waterSourcesCount} change="Live from database" icon={DropletsIcon} variant="default" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -115,7 +210,7 @@ const Dashboard = () => {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Sun className="w-5 h-5 text-warning" />
-              Today's Weather
+              {t("weatherOverview")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -134,17 +229,17 @@ const Dashboard = () => {
                 <div className="grid grid-cols-3 gap-3 mt-4">
                   <div className="text-center p-3 rounded-lg bg-muted">
                     <Droplets className="w-4 h-4 mx-auto text-info" />
-                    <p className="text-xs text-muted-foreground mt-1">Humidity</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("humidity")}</p>
                     <p className="text-sm font-semibold">{weather.humidity}%</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted">
                     <ThermometerSun className="w-4 h-4 mx-auto text-destructive" />
-                    <p className="text-xs text-muted-foreground mt-1">Feels Like</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("feelsLike")}</p>
                     <p className="text-sm font-semibold">{weather.feelsLike}°C</p>
                   </div>
                   <div className="text-center p-3 rounded-lg bg-muted">
                     <TrendingUp className="w-4 h-4 mx-auto text-primary" />
-                    <p className="text-xs text-muted-foreground mt-1">Wind</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("windSpeed")}</p>
                     <p className="text-sm font-semibold">{weather.wind} km/h</p>
                   </div>
                 </div>
@@ -157,7 +252,7 @@ const Dashboard = () => {
 
         <Card className="lg:col-span-2 border-border">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Crop Health Overview</CardTitle>
+            <CardTitle className="text-lg">{t("cropHealthOverview")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             {cropHealth.length === 0 && (
@@ -183,7 +278,7 @@ const Dashboard = () => {
 
       <Card className="border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Recent Activities</CardTitle>
+          <CardTitle className="text-lg">{t("recentActivities")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
