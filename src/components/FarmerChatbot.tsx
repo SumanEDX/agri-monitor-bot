@@ -27,12 +27,14 @@ const langToBcp47: Record<Language, string> = {
 async function streamChat({
   messages,
   language,
+  farmContext,
   onDelta,
   onDone,
   onError,
 }: {
   messages: Message[];
   language: string;
+  farmContext?: FarmContext;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (err: string) => void;
@@ -43,7 +45,7 @@ async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, language }),
+    body: JSON.stringify({ messages, language, farmContext }),
   });
 
   if (!resp.ok) {
