@@ -8,6 +8,12 @@ import { useI18n, type Language } from "@/lib/i18n";
 
 type Message = { role: "user" | "assistant"; content: string };
 
+export type FarmContext = {
+  weather?: { temp: number; condition: string; humidity: number; feelsLike: number; wind: number };
+  cropHealth?: { crop: string; health: number; area: string }[];
+  stats?: { farmers: number; plots: number; tasks: number; waterSources: number };
+};
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/farmer-chat`;
 
 const langToBcp47: Record<Language, string> = {
