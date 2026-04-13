@@ -8,6 +8,12 @@ import { useI18n, type Language } from "@/lib/i18n";
 
 type Message = { role: "user" | "assistant"; content: string };
 
+export type FarmContext = {
+  weather?: { temp: number; condition: string; humidity: number; feelsLike: number; wind: number };
+  cropHealth?: { crop: string; health: number; area: string }[];
+  stats?: { farmers: number; plots: number; tasks: number; waterSources: number };
+};
+
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/farmer-chat`;
 
 const langToBcp47: Record<Language, string> = {
@@ -21,12 +27,14 @@ const langToBcp47: Record<Language, string> = {
 async function streamChat({
   messages,
   language,
+  farmContext,
   onDelta,
   onDone,
   onError,
 }: {
   messages: Message[];
   language: string;
+  farmContext?: FarmContext;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (err: string) => void;
@@ -37,7 +45,7 @@ async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages, language }),
+    body: JSON.stringify({ messages, language, farmContext }),
   });
 
   if (!resp.ok) {
@@ -78,7 +86,7 @@ async function streamChat({
   onDone();
 }
 
-const FarmerChatbot: React.FC = () => {
+const FarmerChatbot: React.FC<{ farmContext?: FarmContext }> = ({ farmContext }) => {
   const { t, language } = useI18n();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -151,6 +159,7 @@ const FarmerChatbot: React.FC = () => {
       await streamChat({
         messages: [...messages, userMsg],
         language,
+        farmContext,
         onDelta: upsert,
         onDone: () => setLoading(false),
         onError: (err) => {

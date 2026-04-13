@@ -13,15 +13,39 @@ const langInstructions: Record<string, string> = {
   te: "దయచేసి తెలుగులో సమాధానం ఇవ్వండి. Respond in Telugu.",
 };
 
+function buildContextBlock(farmContext: any): string {
+  if (!farmContext) return "";
+  const parts: string[] = ["\n\n--- LIVE FARM DATA (use this to give accurate, real-time advice) ---"];
+
+  if (farmContext.weather) {
+    const w = farmContext.weather;
+    parts.push(`Current Weather in Nashik: ${w.temp}°C, ${w.condition}, Humidity: ${w.humidity}%, Feels like: ${w.feelsLike}°C, Wind: ${w.wind} km/h`);
+  }
+
+  if (farmContext.stats) {
+    const s = farmContext.stats;
+    parts.push(`Farm Stats: ${s.farmers} farmers, ${s.plots} active plots, ${s.tasks} tasks, ${s.waterSources} water sources`);
+  }
+
+  if (farmContext.cropHealth && farmContext.cropHealth.length > 0) {
+    const crops = farmContext.cropHealth.map((c: any) => `${c.crop} (${c.area}) - Health: ${c.health}%`).join("; ");
+    parts.push(`Crop Health: ${crops}`);
+  }
+
+  parts.push("--- END LIVE DATA ---");
+  return parts.join("\n");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, language = "en" } = await req.json();
+    const { messages, language = "en", farmContext } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const langInstruction = langInstructions[language] || langInstructions.en;
+    const contextBlock = buildContextBlock(farmContext);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -34,19 +58,24 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are SmartFarm AI Assistant, a helpful agricultural expert chatbot for Indian farmers. You specialize in:
+            content: `You are SmartFarm AI Assistant, a helpful agricultural expert chatbot for Indian farmers. You have access to LIVE, REAL-TIME farm data shown below. Always reference this data when answering questions about weather, crops, or farm status — never make up numbers.
+
+You specialize in:
 - Crop management and best practices
-- Irrigation and water management
+- Irrigation and water management based on current weather conditions
 - Soil health and fertilization
 - Pest and disease identification and control
-- Weather-based farming advice
+- Weather-based farming advice using the LIVE weather data provided
 - Government schemes and subsidies for farmers
 - Market prices and selling strategies
 - Organic farming techniques
 
-Keep answers practical, concise, and farmer-friendly. When relevant, consider the Indian agricultural context (monsoon seasons, local crops like rice, wheat, sugarcane, cotton, etc.). Use simple language that farmers can easily understand.
+When a farmer asks about weather, crops, or farm status, use the LIVE DATA below to give specific, actionable advice. For example, if humidity is high, warn about fungal diseases. If temperature is extreme, suggest protective measures.
 
-${langInstruction}`,
+Keep answers practical, concise, and farmer-friendly. Use simple language.
+
+${langInstruction}
+${contextBlock}`,
           },
           ...messages,
         ],
