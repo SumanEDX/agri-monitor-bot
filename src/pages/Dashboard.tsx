@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useI18n, type Language } from "@/lib/i18n";
+import FarmerChatbot from "@/components/FarmerChatbot";
 
 const NASHIK_LAT = 19.9975;
 const NASHIK_LNG = 73.7898;
