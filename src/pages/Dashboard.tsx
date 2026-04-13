@@ -168,7 +168,8 @@ const Dashboard = () => {
   }, [listening, language, t]);
 
   return (
-    <div className="space-y-8">
+    <>
+      <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">{t("dashboard")}</h1>
         <p className="text-muted-foreground mt-1">Welcome back! Here's your farm overview.</p>
@@ -277,31 +278,34 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">{t("recentActivities")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                  <div>
-                    <p className="text-sm font-medium">{activity.action}</p>
-                    <p className="text-xs text-muted-foreground">{activity.plot}</p>
+        <Card className="border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">{t("recentActivities")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                    <div>
+                      <p className="text-sm font-medium">{activity.action}</p>
+                      <p className="text-xs text-muted-foreground">{activity.plot}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className={statusColors[activity.status]}>{activity.status}</Badge>
+                    <span className="text-xs text-muted-foreground">{activity.time}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge className={statusColors[activity.status]}>{activity.status}</Badge>
-                  <span className="text-xs text-muted-foreground">{activity.time}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <FarmerChatbot />
+    </>
   );
 };
 
