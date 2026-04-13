@@ -86,7 +86,7 @@ async function streamChat({
   onDone();
 }
 
-const FarmerChatbot: React.FC = () => {
+const FarmerChatbot: React.FC<{ farmContext?: FarmContext }> = ({ farmContext }) => {
   const { t, language } = useI18n();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -159,6 +159,7 @@ const FarmerChatbot: React.FC = () => {
       await streamChat({
         messages: [...messages, userMsg],
         language,
+        farmContext,
         onDelta: upsert,
         onDone: () => setLoading(false),
         onError: (err) => {

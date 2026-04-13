@@ -304,7 +304,11 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      <FarmerChatbot />
+      <FarmerChatbot farmContext={{
+        weather: weather ? { temp: weather.temp, condition: weather.condition, humidity: weather.humidity, feelsLike: weather.feelsLike, wind: weather.wind } : undefined,
+        cropHealth: cropHealth.length > 0 ? cropHealth.map(c => ({ crop: c.crop, health: c.health, area: c.area })) : undefined,
+        stats: { farmers: farmersCount, plots: plotsCount, tasks: tasksCount, waterSources: waterSourcesCount },
+      }} />
     </>
   );
 };
