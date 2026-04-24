@@ -66,7 +66,7 @@ const MandiPrices = () => {
         body: { crop, state, district: district === "All" ? "" : district, scope, startDate, endDate },
       });
       if (error) throw error;
-      return data as { records: MandiRecord[]; source: string; cappedDays?: boolean };
+      return data as { records: MandiRecord[]; source: string; cappedDays?: boolean; usedLatestAvailable?: boolean; latestAvailableDate?: string };
     },
   });
 
@@ -147,6 +147,7 @@ const MandiPrices = () => {
 
       {error ? <Card className="border-destructive/30"><CardContent className="p-4 text-sm text-destructive">Unable to fetch mandi prices. Try a recent date or broader filters.</CardContent></Card> : null}
       {data?.cappedDays ? <Card className="border-warning/30"><CardContent className="p-4 text-sm text-muted-foreground">Date range capped to 31 days for fast market analytics.</CardContent></Card> : null}
+      {data?.usedLatestAvailable ? <Card className="border-warning/30"><CardContent className="p-4 text-sm text-muted-foreground">No records were available for your selected dates, so showing latest available {crop} records from {data.latestAvailableDate}.</CardContent></Card> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card><CardContent className="p-5"><div className="flex items-center gap-3"><IndianRupee className="h-5 w-5 text-primary" /><div><p className="text-sm text-muted-foreground">Base district price</p><p className="text-2xl font-bold">₹{currency.format(baseSummary?.modalPrice ?? 0)}</p></div></div></CardContent></Card>
