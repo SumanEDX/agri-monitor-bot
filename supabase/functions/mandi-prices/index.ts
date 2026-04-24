@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 const DATA_GOV_ENDPOINT = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
+const DATA_GOV_CSV = "https://data.gov.in/sites/default/files/Date-Wise-Prices-all-Commodity.csv";
 const PUBLIC_API_KEY = "579b464db66ec23bdd000001";
 
 type MandiRecord = {
@@ -46,6 +47,50 @@ const daysBetween = (from: string, to: string) => {
     days.push(cursor.toISOString().slice(0, 10));
   }
   return days;
+};
+
+const parseCsvRow = (line: string) => {
+  const cells: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (const char of line) {
+    if (char === '"') quoted = !quoted;
+    else if (char === "," && !quoted) {
+      cells.push(current);
+      current = "";
+    } else current += char;
+  }
+  cells.push(current);
+  return cells.map((cell) => cell.trim());
+};
+
+const fetchCsvFallback = async ({ crop, startDate, endDate, state, district, scope }: { crop: string; startDate: string; endDate: string; state: string; district: string; scope: string }) => {
+  const response = await fetch(DATA_GOV_CSV);
+  if (!response.ok) throw new Error(`data.gov.in CSV request failed with ${response.status}`);
+  const [headerLine, ...lines] = (await response.text()).trim().split(/\r?\n/);
+  const headers = parseCsvRow(headerLine);
+  const allMatches = lines.map((line) => {
+    const cells = parseCsvRow(line);
+    return Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ""]));
+  }).filter((item) => {
+    const itemDate = toIsoDate(item.arrival_date);
+    const matchesCrop = item.commodity.toLowerCase() === crop.toLowerCase();
+    const matchesState = scope === "India" ? true : item.state.toLowerCase() === (state || "Maharashtra").toLowerCase();
+    const matchesDistrict = district && district !== "All" ? item.district.toLowerCase() === district.toLowerCase() : true;
+    return matchesCrop && matchesState && matchesDistrict && itemDate >= startDate && itemDate <= endDate;
+  });
+
+  return allMatches.map((item): MandiRecord => ({
+    crop: item.commodity,
+    market: item.market || "Unknown mandi",
+    district: item.district || "Unknown district",
+    state: item.state || "Unknown state",
+    date: toIsoDate(item.arrival_date),
+    modalPrice: parsePrice(item.modal_price),
+    minPrice: parsePrice(item.min_price),
+    maxPrice: parsePrice(item.max_price),
+    variety: item.variety || "",
+  })).filter((record) => record.modalPrice !== null);
 };
 
 const fetchForDate = async ({ crop, date, state, district, scope }: { crop: string; date: string; state: string; district: string; scope: string }) => {
@@ -106,10 +151,18 @@ serve(async (req) => {
       });
     }
 
-    const records = (await Promise.all(days.map((date) => fetchForDate({ crop, date, state, district, scope })))).flat();
+    let records: MandiRecord[] = [];
+    let source = "data.gov.in AGMARKNET API";
+    try {
+      records = (await Promise.all(days.map((date) => fetchForDate({ crop, date, state, district, scope })))).flat();
+    } catch (apiError) {
+      console.warn("Falling back to public data.gov.in CSV:", apiError);
+      records = await fetchCsvFallback({ crop, startDate, endDate, state, district, scope });
+      source = "data.gov.in AGMARKNET CSV";
+    }
     const uniqueRecords = Array.from(new Map(records.map((record) => [`${record.date}-${record.state}-${record.district}-${record.market}-${record.crop}-${record.modalPrice}`, record])).values());
 
-    return new Response(JSON.stringify({ records: uniqueRecords, source: "data.gov.in AGMARKNET", cappedDays: days.length === 31 }), {
+    return new Response(JSON.stringify({ records: uniqueRecords, source, cappedDays: days.length === 31 }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
