@@ -1,0 +1,122 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const DATA_GOV_ENDPOINT = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
+const PUBLIC_API_KEY = "579b464db66ec23bdd000001";
+
+type MandiRecord = {
+  crop: string;
+  market: string;
+  district: string;
+  state: string;
+  date: string;
+  modalPrice: number | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  variety: string;
+};
+
+const toIsoDate = (value: string) => {
+  const parts = value.split("/");
+  if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+  return value;
+};
+
+const toAgmarkDate = (value: string) => {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+};
+
+const parsePrice = (value: unknown) => {
+  const parsed = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
+const daysBetween = (from: string, to: string) => {
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+  const days: string[] = [];
+  for (const cursor = new Date(start); cursor <= end && days.length < 31; cursor.setDate(cursor.getDate() + 1)) {
+    days.push(cursor.toISOString().slice(0, 10));
+  }
+  return days;
+};
+
+const fetchForDate = async ({ crop, date, state, district, scope }: { crop: string; date: string; state: string; district: string; scope: string }) => {
+  const params = new URLSearchParams({
+    "api-key": PUBLIC_API_KEY,
+    format: "json",
+    limit: "1000",
+    offset: "0",
+    "filters[commodity]": crop,
+    "filters[arrival_date]": toAgmarkDate(date),
+  });
+
+  if (scope === "Maharashtra" || state) params.set("filters[state]", state || "Maharashtra");
+  if (district && district !== "All") params.set("filters[district]", district);
+
+  const response = await fetch(`${DATA_GOV_ENDPOINT}?${params.toString()}`);
+  if (!response.ok) throw new Error(`data.gov.in request failed with ${response.status}`);
+  const payload = await response.json();
+  const records = Array.isArray(payload.records) ? payload.records : [];
+
+  return records.map((item: Record<string, unknown>): MandiRecord => ({
+    crop: String(item.commodity ?? crop).trim(),
+    market: String(item.market ?? "Unknown mandi").trim(),
+    district: String(item.district ?? "Unknown district").trim(),
+    state: String(item.state ?? "Unknown state").trim(),
+    date: toIsoDate(String(item.arrival_date ?? date)),
+    modalPrice: parsePrice(item.modal_price),
+    minPrice: parsePrice(item.min_price),
+    maxPrice: parsePrice(item.max_price),
+    variety: String(item.variety ?? "").trim(),
+  })).filter((record: MandiRecord) => record.modalPrice !== null);
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    const body = await req.json();
+    const crop = String(body.crop ?? "Onion").trim().slice(0, 80);
+    const startDate = String(body.startDate ?? new Date().toISOString().slice(0, 10));
+    const endDate = String(body.endDate ?? startDate);
+    const state = String(body.state ?? "Maharashtra").trim().slice(0, 80);
+    const district = String(body.district ?? "").trim().slice(0, 80);
+    const scope = body.scope === "India" ? "India" : "Maharashtra";
+
+    if (!crop || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      return new Response(JSON.stringify({ error: "Invalid crop or date input" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const days = daysBetween(startDate, endDate);
+    if (days.length === 0) {
+      return new Response(JSON.stringify({ error: "Invalid date range" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const records = (await Promise.all(days.map((date) => fetchForDate({ crop, date, state, district, scope })))).flat();
+    const uniqueRecords = Array.from(new Map(records.map((record) => [`${record.date}-${record.state}-${record.district}-${record.market}-${record.crop}-${record.modalPrice}`, record])).values());
+
+    return new Response(JSON.stringify({ records: uniqueRecords, source: "data.gov.in AGMARKNET", cappedDays: days.length === 31 }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("mandi-prices error:", error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unable to fetch mandi prices" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
