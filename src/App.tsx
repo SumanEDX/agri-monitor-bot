@@ -12,6 +12,7 @@ import Tasks from "./pages/Tasks";
 import Weather from "./pages/Weather";
 import CropWaterProductivity from "./pages/CropWaterProductivity";
 import WaterSources from "./pages/WaterSources";
+import MandiPrices from "./pages/MandiPrices";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/weather" element={<Weather />} />
               <Route path="/crop-water" element={<CropWaterProductivity />} />
               <Route path="/water-sources" element={<WaterSources />} />
+              <Route path="/mandi-prices" element={<MandiPrices />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
