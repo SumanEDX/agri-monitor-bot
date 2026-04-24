@@ -12,6 +12,7 @@ const translations: Record<Language, Record<string, string>> = {
     weather: "Weather",
     cropWater: "Crop Water",
     waterSources: "Water Sources",
+    mandiPrices: "Mandi Prices",
     settings: "Settings",
     farmManagement: "Farm Management",
     farmManager: "Farm Manager",
