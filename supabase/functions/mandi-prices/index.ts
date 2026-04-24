@@ -69,18 +69,25 @@ const fetchCsvFallback = async ({ crop, startDate, endDate, state, district, sco
   if (!response.ok) throw new Error(`data.gov.in CSV request failed with ${response.status}`);
   const [headerLine, ...lines] = (await response.text()).trim().split(/\r?\n/);
   const headers = parseCsvRow(headerLine);
-  const allMatches = lines.map((line) => {
+  const cropMatches = lines.map((line) => {
     const cells = parseCsvRow(line);
     return Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ""]));
   }).filter((item) => {
-    const itemDate = toIsoDate(item.arrival_date);
     const matchesCrop = item.commodity.toLowerCase() === crop.toLowerCase();
     const matchesState = scope === "India" ? true : item.state.toLowerCase() === (state || "Maharashtra").toLowerCase();
     const matchesDistrict = district && district !== "All" ? item.district.toLowerCase() === district.toLowerCase() : true;
-    return matchesCrop && matchesState && matchesDistrict && itemDate >= startDate && itemDate <= endDate;
+    return matchesCrop && matchesState && matchesDistrict;
   });
 
-  return allMatches.map((item): MandiRecord => ({
+  const rangeMatches = cropMatches.filter((item) => {
+    const itemDate = toIsoDate(item.arrival_date);
+    return itemDate >= startDate && itemDate <= endDate;
+  });
+
+  const latestAvailableDate = cropMatches.map((item) => toIsoDate(item.arrival_date)).sort().at(-1);
+  const allMatches = rangeMatches.length > 0 ? rangeMatches : cropMatches.filter((item) => toIsoDate(item.arrival_date) === latestAvailableDate);
+
+  const records = allMatches.map((item): MandiRecord => ({
     crop: item.commodity,
     market: item.market || "Unknown mandi",
     district: item.district || "Unknown district",
@@ -91,6 +98,8 @@ const fetchCsvFallback = async ({ crop, startDate, endDate, state, district, sco
     maxPrice: parsePrice(item.max_price),
     variety: item.variety || "",
   })).filter((record) => record.modalPrice !== null);
+
+  return { records, usedLatestAvailable: rangeMatches.length === 0 && records.length > 0, latestAvailableDate };
 };
 
 const fetchForDate = async ({ crop, date, state, district, scope }: { crop: string; date: string; state: string; district: string; scope: string }) => {
@@ -153,16 +162,21 @@ serve(async (req) => {
 
     let records: MandiRecord[] = [];
     let source = "data.gov.in AGMARKNET API";
+    let usedLatestAvailable = false;
+    let latestAvailableDate: string | undefined;
     try {
       records = (await Promise.all(days.map((date) => fetchForDate({ crop, date, state, district, scope })))).flat();
     } catch (apiError) {
       console.warn("Falling back to public data.gov.in CSV:", apiError);
-      records = await fetchCsvFallback({ crop, startDate, endDate, state, district, scope });
+      const fallback = await fetchCsvFallback({ crop, startDate, endDate, state, district, scope });
+      records = fallback.records;
+      usedLatestAvailable = fallback.usedLatestAvailable;
+      latestAvailableDate = fallback.latestAvailableDate;
       source = "data.gov.in AGMARKNET CSV";
     }
     const uniqueRecords = Array.from(new Map(records.map((record) => [`${record.date}-${record.state}-${record.district}-${record.market}-${record.crop}-${record.modalPrice}`, record])).values());
 
-    return new Response(JSON.stringify({ records: uniqueRecords, source, cappedDays: days.length === 31 }), {
+    return new Response(JSON.stringify({ records: uniqueRecords, source, cappedDays: days.length === 31, usedLatestAvailable, latestAvailableDate }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
