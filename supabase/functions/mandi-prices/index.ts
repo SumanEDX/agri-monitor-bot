@@ -115,8 +115,13 @@ const fetchForDate = async ({ crop, date, state, district, scope }: { crop: stri
   if (scope === "Maharashtra" || state) params.set("filters[state]", state || "Maharashtra");
   if (district && district !== "All") params.set("filters[district]", district);
 
-  const response = await fetch(`${DATA_GOV_ENDPOINT}?${params.toString()}`);
-  if (!response.ok) throw new Error(`data.gov.in request failed with ${response.status}`);
+  const url = `${DATA_GOV_ENDPOINT}?${params.toString()}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    console.error(`data.gov.in ${response.status} for ${url} :: ${text.slice(0, 300)}`);
+    throw new Error(`data.gov.in request failed with ${response.status}`);
+  }
   const payload = await response.json();
   const records = Array.isArray(payload.records) ? payload.records : [];
 
