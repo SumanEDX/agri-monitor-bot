@@ -52,10 +52,10 @@ const average = (values: number[]) => values.length ? values.reduce((sum, value)
 
 const MandiPrices = () => {
   const [crop, setCrop] = useState("Onion");
-  const [state, setState] = useState("Maharashtra");
+  const state = "Maharashtra";
   const [district, setDistrict] = useState("All");
   const [baseDistrict, setBaseDistrict] = useState("Nashik");
-  const [scope, setScope] = useState("Maharashtra");
+  const scope = "Maharashtra";
   const [startDate, setStartDate] = useState(weekAgo);
   const [endDate, setEndDate] = useState(today);
 
