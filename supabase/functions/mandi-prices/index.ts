@@ -166,13 +166,27 @@ serve(async (req) => {
     let latestAvailableDate: string | undefined;
     try {
       records = (await Promise.all(days.map((date) => fetchForDate({ crop, date, state, district, scope })))).flat();
+
+      // If live API returns nothing for the selected range, walk back day-by-day
+      // (up to ~45 days) to find the most recent live data instead of using stale CSV fallback.
+      if (records.length === 0) {
+        const cursor = new Date(`${endDate}T00:00:00`);
+        for (let i = 0; i < 45; i++) {
+          cursor.setDate(cursor.getDate() - 1);
+          const probe = cursor.toISOString().slice(0, 10);
+          if (probe < "2024-01-01") break;
+          const found = await fetchForDate({ crop, date: probe, state, district, scope });
+          if (found.length > 0) {
+            records = found;
+            usedLatestAvailable = true;
+            latestAvailableDate = probe;
+            break;
+          }
+        }
+      }
     } catch (apiError) {
-      console.warn("Falling back to public data.gov.in CSV:", apiError);
-      const fallback = await fetchCsvFallback({ crop, startDate, endDate, state, district, scope });
-      records = fallback.records;
-      usedLatestAvailable = fallback.usedLatestAvailable;
-      latestAvailableDate = fallback.latestAvailableDate;
-      source = "data.gov.in AGMARKNET CSV";
+      console.warn("Live API failed:", apiError);
+      records = [];
     }
     const uniqueRecords = Array.from(new Map(records.map((record) => [`${record.date}-${record.state}-${record.district}-${record.market}-${record.crop}-${record.modalPrice}`, record])).values());
 
