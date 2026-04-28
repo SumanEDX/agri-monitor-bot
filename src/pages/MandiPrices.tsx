@@ -52,10 +52,10 @@ const average = (values: number[]) => values.length ? values.reduce((sum, value)
 
 const MandiPrices = () => {
   const [crop, setCrop] = useState("Onion");
-  const [state, setState] = useState("Maharashtra");
+  const state = "Maharashtra";
   const [district, setDistrict] = useState("All");
   const [baseDistrict, setBaseDistrict] = useState("Nashik");
-  const [scope, setScope] = useState("Maharashtra");
+  const scope = "Maharashtra";
   const [startDate, setStartDate] = useState(weekAgo);
   const [endDate, setEndDate] = useState(today);
 
@@ -134,12 +134,10 @@ const MandiPrices = () => {
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Filters</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div className="space-y-2"><Label>Crop</Label><Select value={crop} onValueChange={setCrop}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{crops.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label>State</Label><Select value={state} onValueChange={setState}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{states.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>District</Label><Select value={district} onValueChange={setDistrict}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{maharashtraDistricts.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-2"><Label>Base district</Label><Input value={baseDistrict} onChange={(event) => setBaseDistrict(event.target.value)} /></div>
-          <div className="space-y-2"><Label>Scope</Label><Select value={scope} onValueChange={setScope}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Maharashtra">Maharashtra</SelectItem><SelectItem value="India">India</SelectItem></SelectContent></Select></div>
           <div className="space-y-2"><Label>From</Label><Input type="date" value={startDate} max={endDate} onChange={(event) => setStartDate(event.target.value)} /></div>
           <div className="space-y-2"><Label>To</Label><Input type="date" value={endDate} min={startDate} max={today} onChange={(event) => setEndDate(event.target.value)} /></div>
         </CardContent>
