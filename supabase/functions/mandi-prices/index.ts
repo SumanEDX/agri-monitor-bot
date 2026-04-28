@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const DATA_GOV_ENDPOINT = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
 const DATA_GOV_CSV = "https://data.gov.in/sites/default/files/Date-Wise-Prices-all-Commodity.csv";
-const PUBLIC_API_KEY = "579b464db66ec23bdd000001";
+const DATA_GOV_API_KEY = Deno.env.get("DATA_GOV_IN_API_KEY") ?? "579b464db66ec23bdd000001";
 
 type MandiRecord = {
   crop: string;
@@ -104,7 +104,7 @@ const fetchCsvFallback = async ({ crop, startDate, endDate, state, district, sco
 
 const fetchForDate = async ({ crop, date, state, district, scope }: { crop: string; date: string; state: string; district: string; scope: string }) => {
   const params = new URLSearchParams({
-    "api-key": PUBLIC_API_KEY,
+    "api-key": DATA_GOV_API_KEY,
     format: "json",
     limit: "1000",
     offset: "0",
