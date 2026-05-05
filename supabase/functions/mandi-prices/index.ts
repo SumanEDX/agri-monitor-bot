@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const DATA_GOV_ENDPOINT = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
 const DATA_GOV_CSV = "https://data.gov.in/sites/default/files/Date-Wise-Prices-all-Commodity.csv";
-const PUBLIC_API_KEY = "579b464db66ec23bdd000001";
+const PUBLIC_API_KEY = Deno.env.get("DATA_GOV_IN_API_KEY") ?? "579b464db66ec23bdd000001";
 
 type MandiRecord = {
   crop: string;
