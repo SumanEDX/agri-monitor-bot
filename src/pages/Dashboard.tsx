@@ -1,4 +1,4 @@
-import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2, Mic, MicOff, Search } from "lucide-react";
+import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2, Mic, MicOff, Search, Store, MapPin } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,90 @@ import FarmerChatbot from "@/components/FarmerChatbot";
 
 const NASHIK_LAT = 19.9975;
 const NASHIK_LNG = 73.7898;
+
+// Sinnar, Nashik coordinates — used to rank nearest APMC markets
+const SINNAR_LAT = 19.8467;
+const SINNAR_LNG = 74.0050;
+
+// Approximate coordinates of major Nashik-district APMC markets (for distance ranking)
+const NASHIK_MARKET_COORDS: Record<string, { lat: number; lng: number }> = {
+  "Sinnar": { lat: 19.8467, lng: 74.0050 },
+  "Nashik": { lat: 19.9975, lng: 73.7898 },
+  "Lasalgaon": { lat: 20.1469, lng: 74.2378 },
+  "Pimpalgaon": { lat: 20.1700, lng: 73.9800 },
+  "Niphad": { lat: 20.0793, lng: 74.1100 },
+  "Yeola": { lat: 20.0419, lng: 74.4881 },
+  "Manmad": { lat: 20.2516, lng: 74.4380 },
+  "Satana": { lat: 20.5990, lng: 74.2010 },
+  "Kalwan": { lat: 20.4500, lng: 73.9300 },
+  "Devla": { lat: 20.4500, lng: 74.0500 },
+  "Chandwad": { lat: 20.3300, lng: 74.2400 },
+  "Malegaon": { lat: 20.5579, lng: 74.5089 },
+  "Dindori": { lat: 20.2010, lng: 73.8290 },
+};
+
+const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371;
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(a)));
+};
+
+type MandiRecord = {
+  crop: string;
+  market: string;
+  district: string;
+  state: string;
+  date: string;
+  modalPrice: number | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  variety: string;
+};
+
+const fetchNearestMandiPrices = async () => {
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - 6);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase.functions.invoke("mandi-prices", {
+    body: {
+      crop: "Onion",
+      state: "Maharashtra",
+      district: "Nashik",
+      scope: "Maharashtra",
+      startDate: fmt(start),
+      endDate: fmt(today),
+    },
+  });
+  if (error) throw error;
+  const records: MandiRecord[] = data?.records ?? [];
+
+  // Deduplicate by market, keep most recent record per market
+  const byMarket = new Map<string, MandiRecord>();
+  for (const r of records) {
+    const existing = byMarket.get(r.market);
+    if (!existing || r.date > existing.date) byMarket.set(r.market, r);
+  }
+
+  return Array.from(byMarket.values())
+    .map((r) => {
+      const key = Object.keys(NASHIK_MARKET_COORDS).find((k) => r.market.toLowerCase().includes(k.toLowerCase()));
+      const coords = key ? NASHIK_MARKET_COORDS[key] : null;
+      const distanceKm = coords ? haversineKm(SINNAR_LAT, SINNAR_LNG, coords.lat, coords.lng) : null;
+      return { ...r, distanceKm };
+    })
+    .sort((a, b) => {
+      if (a.distanceKm == null && b.distanceKm == null) return 0;
+      if (a.distanceKm == null) return 1;
+      if (b.distanceKm == null) return -1;
+      return a.distanceKm - b.distanceKm;
+    })
+    .slice(0, 6);
+};
 
 const langToBcp47: Record<Language, string> = {
   en: "en-IN",
@@ -98,6 +182,13 @@ const Dashboard = () => {
   const { data: tasksCount = 0 } = useQuery({ queryKey: ["tasks-count"], queryFn: () => fetchCount("tasks") });
   const { data: waterSourcesCount = 0 } = useQuery({ queryKey: ["water-sources-count"], queryFn: () => fetchCount("water_sources") });
   const { data: cropHealth = [] } = useQuery({ queryKey: ["crop-health"], queryFn: fetchCropHealth });
+
+  const { data: nearestMandi = [], isLoading: mandiLoading } = useQuery({
+    queryKey: ["dashboard-nearest-mandi"],
+    queryFn: fetchNearestMandiPrices,
+    refetchInterval: 30 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
+  });
 
   useEffect(() => {
     const channels = ["farmers", "plots", "tasks", "water_sources"].map((table) =>
@@ -277,6 +368,54 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+        <Card className="border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Store className="w-5 h-5 text-primary" />
+              Nearest APMC Mandi Prices — Onion
+            </CardTitle>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <MapPin className="w-3 h-3" /> Ranked by distance from Sinnar, Nashik, Maharashtra · Source: data.gov.in AGMARKNET
+            </p>
+          </CardHeader>
+          <CardContent>
+            {mandiLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            ) : nearestMandi.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No live mandi prices available right now.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {nearestMandi.map((r) => (
+                  <div key={r.market} className="p-3 rounded-lg bg-muted/50 border border-border">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-sm">{r.market}</p>
+                        <p className="text-xs text-muted-foreground">{r.district} · {r.variety || "—"}</p>
+                      </div>
+                      {r.distanceKm != null && (
+                        <Badge className="bg-primary/15 text-primary border-0 shrink-0">~{r.distanceKm} km</Badge>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-end justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-foreground">₹{r.modalPrice ?? "—"}</p>
+                        <p className="text-[10px] text-muted-foreground">Modal · per quintal</p>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground">
+                        <p>Min ₹{r.minPrice ?? "—"}</p>
+                        <p>Max ₹{r.maxPrice ?? "—"}</p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2">{r.date}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="border-border">
           <CardHeader className="pb-3">
