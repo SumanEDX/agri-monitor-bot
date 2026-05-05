@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const DATA_GOV_ENDPOINT = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070";
 const DATA_GOV_CSV = "https://data.gov.in/sites/default/files/Date-Wise-Prices-all-Commodity.csv";
-const DATA_GOV_API_KEY = Deno.env.get("DATA_GOV_IN_API_KEY") ?? "579b464db66ec23bdd000001";
+const PUBLIC_API_KEY = Deno.env.get("DATA_GOV_IN_API_KEY") ?? "579b464db66ec23bdd000001";
 
 type MandiRecord = {
   crop: string;
@@ -104,7 +104,7 @@ const fetchCsvFallback = async ({ crop, startDate, endDate, state, district, sco
 
 const fetchForDate = async ({ crop, date, state, district, scope }: { crop: string; date: string; state: string; district: string; scope: string }) => {
   const params = new URLSearchParams({
-    "api-key": DATA_GOV_API_KEY,
+    "api-key": PUBLIC_API_KEY,
     format: "json",
     limit: "1000",
     offset: "0",
@@ -115,13 +115,8 @@ const fetchForDate = async ({ crop, date, state, district, scope }: { crop: stri
   if (scope === "Maharashtra" || state) params.set("filters[state]", state || "Maharashtra");
   if (district && district !== "All") params.set("filters[district]", district);
 
-  const url = `${DATA_GOV_ENDPOINT}?${params.toString()}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    console.error(`data.gov.in ${response.status} for ${url} :: ${text.slice(0, 300)}`);
-    throw new Error(`data.gov.in request failed with ${response.status}`);
-  }
+  const response = await fetch(`${DATA_GOV_ENDPOINT}?${params.toString()}`);
+  if (!response.ok) throw new Error(`data.gov.in request failed with ${response.status}`);
   const payload = await response.json();
   const records = Array.isArray(payload.records) ? payload.records : [];
 
