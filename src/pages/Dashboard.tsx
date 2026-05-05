@@ -77,13 +77,13 @@ const fetchNearestMandiPrices = async () => {
   const records: MandiRecord[] = data?.records ?? [];
 
   // Deduplicate by market, keep most recent record per market
-  const byMarket = new Map<string, MandiRecord>();
+  const byMarket: Record<string, MandiRecord> = {};
   for (const r of records) {
-    const existing = byMarket.get(r.market);
-    if (!existing || r.date > existing.date) byMarket.set(r.market, r);
+    const existing = byMarket[r.market];
+    if (!existing || r.date > existing.date) byMarket[r.market] = r;
   }
 
-  return Array.from(byMarket.values())
+  return Object.values(byMarket)
     .map((r) => {
       const key = Object.keys(NASHIK_MARKET_COORDS).find((k) => r.market.toLowerCase().includes(k.toLowerCase()));
       const coords = key ? NASHIK_MARKET_COORDS[key] : null;
