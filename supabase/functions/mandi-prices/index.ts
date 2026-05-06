@@ -55,6 +55,20 @@ const fetchPage = async (params: URLSearchParams, retries = 3): Promise<Record<s
   return [];
 };
 
+const fetchAll = async (extras: Record<string, string> = {}, crop: string, maxPages = 8): Promise<Record<string, unknown>[]> => {
+  const all: Record<string, unknown>[] = [];
+  const pageSize = 1000;
+  for (let i = 0; i < maxPages; i++) {
+    const p = buildParams(crop, { ...extras, offset: String(i * pageSize) });
+    p.set("limit", String(pageSize));
+    const rows = await fetchPage(p);
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    await sleep(150);
+  }
+  return all;
+};
+
 const buildParams = (crop: string, extras: Record<string, string> = {}) => {
   const p = new URLSearchParams({
     "api-key": PUBLIC_API_KEY,
@@ -90,8 +104,8 @@ serve(async (req) => {
       return true;
     };
 
-    // 1) LATEST snapshot: fetch broadly (commodity only), then filter scope and find latest date within scope
-    const latestRows = await fetchPage(buildParams(crop));
+    // 1) LATEST snapshot: fetch broadly across all pages, then filter scope and find latest date within scope
+    const latestRows = await fetchAll({}, crop);
     const scopedAll = latestRows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
     let latestDate: string | undefined;
     for (const r of scopedAll) if (!latestDate || r.date > latestDate) latestDate = r.date;
@@ -108,7 +122,7 @@ serve(async (req) => {
       }
       for (const day of days) {
         try {
-          const rows = await fetchPage(buildParams(crop, { "filters[arrival_date]": toAgmarkDate(day) }));
+          const rows = await fetchAll({ "filters[arrival_date]": toAgmarkDate(day) }, crop, 4);
           historicalRecords.push(
             ...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r)),
           );
