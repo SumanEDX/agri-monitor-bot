@@ -80,25 +80,26 @@ serve(async (req) => {
 
     if (!crop) return new Response(JSON.stringify({ error: "Crop required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // 1) LATEST snapshot: server-side commodity+state filter; pick latest date in returned rows
-    const latestRows = await fetchPage(buildParams(crop, scope, state, district));
-    const latestMapped = latestRows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null);
+    // 1) LATEST snapshot: walk recent days, fetch commodity-only, filter scope client-side
+    const matchesScope = (r: MandiRecord) =>
+      (scope === "India" || !state || r.state.toLowerCase() === state.toLowerCase()) &&
+      (!district || district === "All" || r.district.toLowerCase() === district.toLowerCase());
     let latestDate: string | undefined;
-    for (const r of latestMapped) if (!latestDate || r.date > latestDate) latestDate = r.date;
-    let latestRecords = latestMapped.filter((r) => r.date === latestDate);
+    let latestRecords: MandiRecord[] = [];
     let usedLatestAvailable = false;
-
-    // Fallback: if state filter returned empty (some state-day combos not indexed), walk back days using commodity-only and filter client-side
-    if (latestRecords.length === 0 && scope !== "India" && state) {
-      const probe = new Date();
-      for (let i = 0; i < 10; i++) {
-        const day = probe.toISOString().slice(0, 10);
-        const rows = await fetchPage(buildParams(crop, "India", "", "", { "filters[arrival_date]": toAgmarkDate(day) }));
-        const scoped = rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && r.state.toLowerCase() === state.toLowerCase() && (!district || district === "All" || r.district.toLowerCase() === district.toLowerCase()));
-        if (scoped.length > 0) { latestDate = day; latestRecords = scoped.map((r) => ({ ...r, date: day })); usedLatestAvailable = true; break; }
-        probe.setDate(probe.getDate() - 1);
-        await sleep(250);
+    const probe = new Date();
+    for (let i = 0; i < 10; i++) {
+      const day = probe.toISOString().slice(0, 10);
+      const rows = await fetchPage(buildParams(crop, "India", "", "", { "filters[arrival_date]": toAgmarkDate(day) }));
+      const scoped = rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
+      if (scoped.length > 0) {
+        latestDate = day;
+        latestRecords = scoped.map((r) => ({ ...r, date: day }));
+        if (i > 0) usedLatestAvailable = true;
+        break;
       }
+      probe.setDate(probe.getDate() - 1);
+      await sleep(200);
     }
 
     // 2) HISTORICAL trend (sequential, capped 10 days)
@@ -112,8 +113,8 @@ serve(async (req) => {
       }
       for (const day of days) {
         try {
-          const rows = await fetchPage(buildParams(crop, scope, state, district, { "filters[arrival_date]": toAgmarkDate(day) }));
-          historicalRecords.push(...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null));
+          const rows = await fetchPage(buildParams(crop, "India", "", "", { "filters[arrival_date]": toAgmarkDate(day) }));
+          historicalRecords.push(...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r)));
           await sleep(200);
         } catch (e) { console.warn(`day ${day} failed`, e); }
       }
