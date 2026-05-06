@@ -99,7 +99,7 @@ serve(async (req) => {
       return out;
     };
     const probe = new Date();
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 21; i++) {
       const day = probe.toISOString().slice(0, 10);
       const rows = await fetchDayAllPages(day);
       const scoped = rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
