@@ -87,10 +87,21 @@ serve(async (req) => {
     let latestDate: string | undefined;
     let latestRecords: MandiRecord[] = [];
     let usedLatestAvailable = false;
+    const fetchDayAllPages = async (day: string) => {
+      const out: Record<string, unknown>[] = [];
+      for (let p = 0; p < 8; p++) {
+        const params = buildParams(crop, "India", "", "", { "filters[arrival_date]": toAgmarkDate(day), offset: String(p * 1000) });
+        const rows = await fetchPage(params);
+        out.push(...rows);
+        if (rows.length < 1000) break;
+        await sleep(150);
+      }
+      return out;
+    };
     const probe = new Date();
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 7; i++) {
       const day = probe.toISOString().slice(0, 10);
-      const rows = await fetchPage(buildParams(crop, "India", "", "", { "filters[arrival_date]": toAgmarkDate(day) }));
+      const rows = await fetchDayAllPages(day);
       const scoped = rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
       if (scoped.length > 0) {
         latestDate = day;
@@ -99,7 +110,7 @@ serve(async (req) => {
         break;
       }
       probe.setDate(probe.getDate() - 1);
-      await sleep(200);
+      await sleep(150);
     }
 
     // 2) HISTORICAL trend (sequential, capped 10 days)
@@ -113,9 +124,8 @@ serve(async (req) => {
       }
       for (const day of days) {
         try {
-          const rows = await fetchPage(buildParams(crop, "India", "", "", { "filters[arrival_date]": toAgmarkDate(day) }));
+          const rows = await fetchDayAllPages(day);
           historicalRecords.push(...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r)));
-          await sleep(200);
         } catch (e) { console.warn(`day ${day} failed`, e); }
       }
     }
