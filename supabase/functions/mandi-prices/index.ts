@@ -86,6 +86,17 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
+    if (body.debug === "probe") {
+      const out: Record<string, unknown> = { keyLen: PUBLIC_API_KEY.length, prefix: PUBLIC_API_KEY.slice(0, 8) };
+      const dates = ["06/05/2026","05/05/2026","04/05/2026","03/05/2026","02/05/2026","01/05/2026","30/04/2026","29/04/2026"];
+      for (const d of dates) {
+        const u = `${DATA_GOV_ENDPOINT}?api-key=${PUBLIC_API_KEY}&format=json&limit=1000&filters[commodity]=Onion&filters[state]=Maharashtra&filters[arrival_date]=${encodeURIComponent(d)}`;
+        const r = await fetch(u);
+        const j = await r.json();
+        out[d] = Array.isArray(j.records) ? j.records.length : (j.error ?? "err");
+      }
+      return new Response(JSON.stringify(out), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const crop = String(body.crop ?? "Onion").trim().slice(0, 80);
     const startDate = String(body.startDate ?? "");
     const endDate = String(body.endDate ?? "");
