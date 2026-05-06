@@ -112,7 +112,7 @@ const fetchForDate = async ({ crop, date, state, district, scope }: { crop: stri
     "filters[arrival_date]": toAgmarkDate(date),
   });
 
-  if (scope === "Maharashtra" || state) params.set("filters[state]", state || "Maharashtra");
+  if (scope !== "India" && state) params.set("filters[state]", state);
   if (district && district !== "All") params.set("filters[district]", district);
 
   const response = await fetch(`${DATA_GOV_ENDPOINT}?${params.toString()}`);
@@ -143,7 +143,7 @@ serve(async (req) => {
     const endDate = String(body.endDate ?? startDate);
     const state = String(body.state ?? "Maharashtra").trim().slice(0, 80);
     const district = String(body.district ?? "").trim().slice(0, 80);
-    const scope = body.scope === "India" ? "India" : "Maharashtra";
+    const scope = body.scope === "India" ? "India" : "State";
 
     if (!crop || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
       return new Response(JSON.stringify({ error: "Invalid crop or date input" }), {
