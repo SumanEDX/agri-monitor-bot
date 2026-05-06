@@ -55,17 +55,15 @@ const fetchPage = async (params: URLSearchParams, retries = 3): Promise<Record<s
   return [];
 };
 
-const buildParams = (crop: string, scope: string, state: string, district: string, extras: Record<string, string> = {}) => {
+const buildParams = (crop: string, extras: Record<string, string> = {}) => {
   const p = new URLSearchParams({
     "api-key": PUBLIC_API_KEY,
     format: "json",
-    limit: "1000",
+    limit: "2000",
     offset: "0",
     "filters[commodity]": crop,
     ...extras,
   });
-  if (scope !== "India" && state) p.set("filters[state]", state);
-  if (district && district !== "All") p.set("filters[district]", district);
   return p;
 };
 
@@ -85,16 +83,19 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Crop required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 1) LATEST snapshot for comparison: fetch without date filter (API returns recent records)
-    const latestRows = await fetchPage(buildParams(crop, scope, state, district));
+    // Helper to apply scope/state/district filtering client-side (data.gov.in state filter is unreliable)
+    const matchesScope = (r: MandiRecord) => {
+      if (scope !== "India" && state && r.state.toLowerCase() !== state.toLowerCase()) return false;
+      if (district && district !== "All" && r.district.toLowerCase() !== district.toLowerCase()) return false;
+      return true;
+    };
+
+    // 1) LATEST snapshot: fetch broadly (commodity only), then filter scope and find latest date within scope
+    const latestRows = await fetchPage(buildParams(crop));
+    const scopedAll = latestRows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
     let latestDate: string | undefined;
-    for (const r of latestRows) {
-      const d = toIsoDate(String(r.arrival_date ?? ""));
-      if (d && (!latestDate || d > latestDate)) latestDate = d;
-    }
-    const latestRecords = latestRows
-      .map((r) => mapRecord(r, crop))
-      .filter((r) => r.modalPrice !== null && r.date === latestDate);
+    for (const r of scopedAll) if (!latestDate || r.date > latestDate) latestDate = r.date;
+    const latestRecords = scopedAll.filter((r) => r.date === latestDate);
 
     // 2) HISTORICAL trend: sequentially walk dates in range (max 14 days) with delay
     const historicalRecords: MandiRecord[] = [];
@@ -107,9 +108,11 @@ serve(async (req) => {
       }
       for (const day of days) {
         try {
-          const rows = await fetchPage(buildParams(crop, scope, state, district, { "filters[arrival_date]": toAgmarkDate(day) }));
-          historicalRecords.push(...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null));
-          await sleep(150);
+          const rows = await fetchPage(buildParams(crop, { "filters[arrival_date]": toAgmarkDate(day) }));
+          historicalRecords.push(
+            ...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r)),
+          );
+          await sleep(180);
         } catch (e) {
           console.warn(`day ${day} failed`, e);
         }
