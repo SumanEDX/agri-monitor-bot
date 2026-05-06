@@ -104,12 +104,22 @@ serve(async (req) => {
       return true;
     };
 
-    // 1) LATEST snapshot: fetch broadly across all pages, then filter scope and find latest date within scope
-    const latestRows = await fetchAll({}, crop);
-    const scopedAll = latestRows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
+    // 1) LATEST snapshot: fetch up to N recent days and pick the most recent date within scope
+    let latestRecords: MandiRecord[] = [];
     let latestDate: string | undefined;
-    for (const r of scopedAll) if (!latestDate || r.date > latestDate) latestDate = r.date;
-    const latestRecords = scopedAll.filter((r) => r.date === latestDate);
+    const probe = new Date();
+    for (let i = 0; i < 30 && !latestDate; i++) {
+      const day = probe.toISOString().slice(0, 10);
+      const rows = await fetchAll({ "filters[arrival_date]": toAgmarkDate(day) }, crop, 6);
+      const scoped = rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
+      if (scoped.length > 0) {
+        latestDate = day;
+        latestRecords = scoped.map((r) => ({ ...r, date: day }));
+        break;
+      }
+      probe.setDate(probe.getDate() - 1);
+      await sleep(120);
+    }
 
     // 2) HISTORICAL trend: sequentially walk dates in range (max 14 days) with delay
     const historicalRecords: MandiRecord[] = [];
