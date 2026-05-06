@@ -13,18 +13,18 @@ type MandiRecord = {
   modalPrice: number | null; minPrice: number | null; maxPrice: number | null; variety: string;
 };
 
-const toIsoDate = (value: string) => {
-  const parts = value.split("/");
-  if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-  return value;
+const toIsoDate = (v: string) => {
+  const p = v.split("/");
+  if (p.length === 3) return `${p[2]}-${p[1].padStart(2,"0")}-${p[0].padStart(2,"0")}`;
+  return v;
 };
-const toAgmarkDate = (value: string) => {
-  const d = new Date(`${value}T00:00:00`);
+const toAgmarkDate = (v: string) => {
+  const d = new Date(`${v}T00:00:00`);
   if (Number.isNaN(d.getTime())) return "";
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
 };
 const parsePrice = (v: unknown) => {
-  const n = Number(String(v ?? "").replace(/,/g, ""));
+  const n = Number(String(v ?? "").replace(/,/g,""));
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -41,49 +41,34 @@ const mapRecord = (item: Record<string, unknown>, fallbackCrop: string): MandiRe
   variety: String(item.variety ?? "").trim(),
 });
 
-const fetchPage = async (params: URLSearchParams, retries = 3): Promise<Record<string, unknown>[]> => {
+const fetchPage = async (params: URLSearchParams, retries = 5): Promise<Record<string, unknown>[]> => {
   for (let attempt = 0; attempt < retries; attempt++) {
     const res = await fetch(`${DATA_GOV_ENDPOINT}?${params.toString()}`);
-    if (res.status === 429) {
-      await sleep(600 * (attempt + 1));
+    const text = await res.text();
+    let payload: { records?: unknown[]; error?: string } = {};
+    try { payload = JSON.parse(text); } catch {}
+    if (res.status === 429 || (payload.error && /rate limit/i.test(payload.error))) {
+      await sleep(1500 * (attempt + 1));
       continue;
     }
     if (!res.ok) throw new Error(`data.gov.in ${res.status}`);
-    const payload = await res.json();
-    return Array.isArray(payload.records) ? payload.records : [];
+    return Array.isArray(payload.records) ? (payload.records as Record<string, unknown>[]) : [];
   }
   return [];
 };
 
-const fetchAll = async (extras: Record<string, string> = {}, crop: string, maxPages = 8): Promise<Record<string, unknown>[]> => {
-  const all: Record<string, unknown>[] = [];
-  const pageSize = 1000;
-  for (let i = 0; i < maxPages; i++) {
-    const p = buildParams(crop, { ...extras, offset: String(i * pageSize) });
-    p.set("limit", String(pageSize));
-    const rows = await fetchPage(p);
-    all.push(...rows);
-    if (rows.length < pageSize) break;
-    await sleep(150);
-  }
-  return all;
-};
-
-const buildParams = (crop: string, extras: Record<string, string> = {}) => {
+const buildParams = (crop: string, scope: string, state: string, district: string, extras: Record<string, string> = {}) => {
   const p = new URLSearchParams({
-    "api-key": PUBLIC_API_KEY,
-    format: "json",
-    limit: "2000",
-    offset: "0",
-    "filters[commodity]": crop,
-    ...extras,
+    "api-key": PUBLIC_API_KEY, format: "json", limit: "1000", offset: "0",
+    "filters[commodity]": crop, ...extras,
   });
+  if (scope !== "India" && state) p.set("filters[state]", state);
+  if (district && district !== "All") p.set("filters[district]", district);
   return p;
 };
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
   try {
     const body = await req.json();
     const crop = String(body.crop ?? "Onion").trim().slice(0, 80);
@@ -93,58 +78,44 @@ serve(async (req) => {
     const district = String(body.district ?? "").trim().slice(0, 80);
     const scope = body.scope === "India" ? "India" : "State";
 
-    if (!crop) {
-      return new Response(JSON.stringify({ error: "Crop required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (!crop) return new Response(JSON.stringify({ error: "Crop required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    // Helper to apply scope/state/district filtering client-side (data.gov.in state filter is unreliable)
-    const matchesScope = (r: MandiRecord) => {
-      if (scope !== "India" && state && r.state.toLowerCase() !== state.toLowerCase()) return false;
-      if (district && district !== "All" && r.district.toLowerCase() !== district.toLowerCase()) return false;
-      return true;
-    };
-
-    // 1) LATEST snapshot: probe recent days quickly (single page each) until we find scope data, then page fully
-    let latestRecords: MandiRecord[] = [];
+    // 1) LATEST snapshot: server-side commodity+state filter; pick latest date in returned rows
+    const latestRows = await fetchPage(buildParams(crop, scope, state, district));
+    const latestMapped = latestRows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null);
     let latestDate: string | undefined;
-    const probe = new Date();
-    for (let i = 0; i < 14; i++) {
-      const day = probe.toISOString().slice(0, 10);
-      const firstPage = await fetchPage(buildParams(crop, { "filters[arrival_date]": toAgmarkDate(day), limit: "1000", offset: "0" }));
-      const scopedFirst = firstPage.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
-      if (scopedFirst.length > 0 || firstPage.length === 1000) {
-        // Found data or page is full → fetch remaining pages
-        const all = firstPage.length === 1000 ? await fetchAll({ "filters[arrival_date]": toAgmarkDate(day) }, crop, 6) : firstPage;
-        const scoped = all.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r));
-        if (scoped.length > 0) {
-          latestDate = day;
-          latestRecords = scoped.map((r) => ({ ...r, date: day }));
-          break;
-        }
+    for (const r of latestMapped) if (!latestDate || r.date > latestDate) latestDate = r.date;
+    let latestRecords = latestMapped.filter((r) => r.date === latestDate);
+    let usedLatestAvailable = false;
+
+    // Fallback: if state filter returned empty (some state-day combos not indexed), walk back days using commodity-only and filter client-side
+    if (latestRecords.length === 0 && scope !== "India" && state) {
+      const probe = new Date();
+      for (let i = 0; i < 10; i++) {
+        const day = probe.toISOString().slice(0, 10);
+        const rows = await fetchPage(buildParams(crop, "India", "", "", { "filters[arrival_date]": toAgmarkDate(day) }));
+        const scoped = rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && r.state.toLowerCase() === state.toLowerCase() && (!district || district === "All" || r.district.toLowerCase() === district.toLowerCase()));
+        if (scoped.length > 0) { latestDate = day; latestRecords = scoped.map((r) => ({ ...r, date: day })); usedLatestAvailable = true; break; }
+        probe.setDate(probe.getDate() - 1);
+        await sleep(250);
       }
-      probe.setDate(probe.getDate() - 1);
-      await sleep(100);
     }
 
-    // 2) HISTORICAL trend: sequentially walk dates in range (max 14 days) with delay
+    // 2) HISTORICAL trend (sequential, capped 10 days)
     const historicalRecords: MandiRecord[] = [];
     if (/^\d{4}-\d{2}-\d{2}$/.test(startDate) && /^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      const days: string[] = [];
       const start = new Date(`${startDate}T00:00:00`);
       const end = new Date(`${endDate}T00:00:00`);
-      const days: string[] = [];
-      for (const c = new Date(start); c <= end && days.length < 14; c.setDate(c.getDate() + 1)) {
+      for (const c = new Date(start); c <= end && days.length < 10; c.setDate(c.getDate() + 1)) {
         days.push(c.toISOString().slice(0, 10));
       }
       for (const day of days) {
         try {
-          const rows = await fetchAll({ "filters[arrival_date]": toAgmarkDate(day) }, crop, 4);
-          historicalRecords.push(
-            ...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null && matchesScope(r)),
-          );
-          await sleep(180);
-        } catch (e) {
-          console.warn(`day ${day} failed`, e);
-        }
+          const rows = await fetchPage(buildParams(crop, scope, state, district, { "filters[arrival_date]": toAgmarkDate(day) }));
+          historicalRecords.push(...rows.map((r) => mapRecord(r, crop)).filter((r) => r.modalPrice !== null));
+          await sleep(200);
+        } catch (e) { console.warn(`day ${day} failed`, e); }
       }
     }
 
@@ -155,7 +126,7 @@ serve(async (req) => {
       records: unique,
       source: "data.gov.in AGMARKNET API",
       latestAvailableDate: latestDate,
-      usedLatestAvailable: latestDate ? latestDate < endDate : false,
+      usedLatestAvailable,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("mandi-prices error:", error);
