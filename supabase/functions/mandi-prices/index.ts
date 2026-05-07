@@ -65,6 +65,7 @@ async function fetchPage(params: URLSearchParams, retries = 4): Promise<Raw[]> {
     const text = await res.text();
     let payload: { records?: unknown[]; error?: string } = {};
     try { payload = JSON.parse(text); } catch { /* */ }
+    if (i === 0) console.log("data.gov.in", res.status, "keylen", API_KEY.length, "preview", text.slice(0, 200));
     if (res.status === 429 || (payload.error && /rate limit/i.test(payload.error))) {
       await sleep(1200 * (i + 1));
       continue;
