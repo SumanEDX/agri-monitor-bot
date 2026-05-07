@@ -87,7 +87,6 @@ async function fetchAllForCommodity(commodity: string, maxPages = 6): Promise<Re
       offset: String(p * 1000),
       "filters[state]": "Maharashtra",
       "filters[commodity]": commodity,
-      "sort[arrival_date]": "desc",
     });
     const rows = await fetchPage(params);
     out.push(...rows.map(map).filter((r) => r.modal_price !== null && r.arrival_date));
@@ -108,8 +107,7 @@ serve(async (req) => {
       // List commodities currently reported in Maharashtra (most recent page)
       const params = new URLSearchParams({
         "api-key": API_KEY, format: "json", limit: "1000", offset: "0",
-        "filters[state]": "Maharashtra",
-      "sort[arrival_date]": "desc",
+      "filters[state]": "Maharashtra",
       });
       const rows = (await fetchPage(params)).map(map);
       const set = new Set(rows.map((r) => r.commodity).filter(Boolean));
