@@ -29,10 +29,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
-  APMCS,
-  CROPS,
   STATE_NAME,
   computeTrend,
+  fetchCommodities,
+  getApmcs,
   getCropTrend,
   getLatestByApmc,
   getLatestForApmc,
@@ -50,12 +50,25 @@ const trendMeta: Record<Trend, { label: string; icon: typeof TrendingUp; cls: st
 
 export default function MandiPrices() {
   const [crop, setCrop] = useState<string>("Onion");
-  const [apmc, setApmc] = useState<string>("Pune");
+  const [apmc, setApmc] = useState<string>("");
   const [days, setDays] = useState<7 | 15 | 30>(15);
+
+  const cropList = useQuery({ queryKey: ["mandi-commodities"], queryFn: fetchCommodities });
+  const apmcList = useQuery({ queryKey: ["mandi-apmcs", crop], queryFn: () => getApmcs(crop) });
+
+  useEffect(() => {
+    if (apmcList.data && apmcList.data.length && !apmcList.data.includes(apmc)) {
+      setApmc(apmcList.data[0]);
+    }
+  }, [apmcList.data, apmc]);
+
+  const CROPS = cropList.data ?? ["Onion"];
+  const APMCS = apmcList.data ?? [];
 
   const latestApmc = useQuery({
     queryKey: ["mandi-latest-apmc", crop, apmc],
     queryFn: () => getLatestForApmc(crop, apmc),
+    enabled: !!apmc,
   });
 
   const latestAll = useQuery({
@@ -71,6 +84,7 @@ export default function MandiPrices() {
   const apmcTrend = useQuery({
     queryKey: ["mandi-apmc-trend", crop, apmc, days],
     queryFn: () => getCropTrend(crop, days, apmc),
+    enabled: !!apmc,
   });
 
   const trendLabel: Trend = useMemo(

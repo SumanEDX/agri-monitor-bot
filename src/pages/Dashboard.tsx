@@ -58,23 +58,23 @@ type MandiRecord = {
 };
 
 const fetchNearestMandiPrices = async () => {
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - 6);
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-
   const { data, error } = await supabase.functions.invoke("mandi-prices", {
-    body: {
-      crop: "Onion",
-      state: "Maharashtra",
-      district: "Nashik",
-      scope: "Maharashtra",
-      startDate: fmt(start),
-      endDate: fmt(today),
-    },
+    body: { commodity: "Onion" },
   });
   if (error) throw error;
-  const records: MandiRecord[] = data?.records ?? [];
+  type Raw = {
+    commodity: string; market: string; district: string; state: string;
+    arrival_date: string; modal_price: number | null; min_price: number | null;
+    max_price: number | null; variety: string;
+  };
+  const raw: Raw[] = data?.records ?? [];
+  const records: MandiRecord[] = raw
+    .filter((r) => (r.district || "").toLowerCase() === "nashik")
+    .map((r) => ({
+      crop: r.commodity, market: r.market, district: r.district, state: r.state,
+      date: r.arrival_date, modalPrice: r.modal_price, minPrice: r.min_price,
+      maxPrice: r.max_price, variety: r.variety,
+    }));
 
   // Deduplicate by market, keep most recent record per market
   const byMarket: Record<string, MandiRecord> = {};
