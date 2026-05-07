@@ -1,217 +1,375 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import { ArrowDown, ArrowUp, BarChart3, CalendarDays, Download, IndianRupee, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  IndianRupee,
+  Minus,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Wheat,
+  Store,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  APMCS,
+  CROPS,
+  STATE_NAME,
+  computeTrend,
+  getCropTrend,
+  getLatestByApmc,
+  getLatestForApmc,
+  type Trend,
+} from "@/lib/mandiDataService";
 
-type MandiRecord = {
-  crop: string;
-  market: string;
-  district: string;
-  state: string;
-  date: string;
-  modalPrice: number | null;
-  minPrice: number | null;
-  maxPrice: number | null;
-  variety: string;
+const formatINR = (n: number | null | undefined) =>
+  n == null ? "—" : `₹${Math.round(n).toLocaleString("en-IN")}`;
+
+const trendMeta: Record<Trend, { label: string; icon: typeof TrendingUp; cls: string; emoji: string }> = {
+  increasing: { label: "Increasing", icon: TrendingUp, cls: "bg-success/15 text-success border-success/30", emoji: "📈" },
+  decreasing: { label: "Decreasing", icon: TrendingDown, cls: "bg-destructive/15 text-destructive border-destructive/30", emoji: "📉" },
+  stable: { label: "Stable", icon: Minus, cls: "bg-muted text-muted-foreground border-border", emoji: "➖" },
 };
 
-type DistrictSummary = {
-  district: string;
-  state: string;
-  markets: number;
-  modalPrice: number;
-  minPrice: number;
-  maxPrice: number;
-  absoluteDiff: number;
-  percentDiff: number;
-};
+export default function MandiPrices() {
+  const [crop, setCrop] = useState<string>("Onion");
+  const [apmc, setApmc] = useState<string>("Pune");
+  const [days, setDays] = useState<7 | 15 | 30>(15);
 
-const crops = ["Onion", "Sugarcane", "Wheat", "Rice", "Maize", "Cotton", "Soyabean", "Tomato", "Potato", "Gram", "Bajra", "Jowar", "Banana", "Apple", "Mango", "Garlic", "Ginger"];
-const states = ["Maharashtra", "Gujarat", "Karnataka", "Madhya Pradesh", "Punjab", "Rajasthan", "Uttar Pradesh", "Tamil Nadu", "Telangana", "West Bengal", "Andhra Pradesh", "Bihar", "Haryana", "Kerala", "Odisha"];
-
-const chartConfig = {
-  modalPrice: { label: "Modal price", color: "hsl(var(--primary))" },
-  districtPrice: { label: "District price", color: "hsl(var(--secondary))" },
-} satisfies ChartConfig;
-
-const currency = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
-const today = new Date().toISOString().slice(0, 10);
-const monthAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
-const average = (values: number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
-const stddev = (values: number[]) => {
-  if (values.length < 2) return 0;
-  const mean = average(values);
-  return Math.sqrt(average(values.map((v) => (v - mean) ** 2)));
-};
-
-const MandiPrices = () => {
-  const [crop, setCrop] = useState("Onion");
-  const [scope, setScope] = useState<"State" | "India">("State");
-  const [state, setState] = useState("Maharashtra");
-  const [baseDistrict, setBaseDistrict] = useState("Nashik");
-  const [startDate, setStartDate] = useState(monthAgo);
-  const [endDate, setEndDate] = useState(today);
-
-  const { data, isFetching, error, refetch } = useQuery({
-    queryKey: ["mandi-prices", crop, state, scope, startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("mandi-prices", {
-        body: { crop, state: scope === "India" ? "" : state, district: "", scope, startDate, endDate },
-      });
-      if (error) throw error;
-      return data as { records: MandiRecord[]; source: string; cappedDays?: boolean; usedLatestAvailable?: boolean; latestAvailableDate?: string };
-    },
+  const latestApmc = useQuery({
+    queryKey: ["mandi-latest-apmc", crop, apmc],
+    queryFn: () => getLatestForApmc(crop, apmc),
   });
 
-  const records = data?.records ?? [];
-  const latestDate = records.map((r) => r.date).sort().at(-1) ?? "";
+  const latestAll = useQuery({
+    queryKey: ["mandi-latest-all", crop],
+    queryFn: () => getLatestByApmc(crop),
+  });
 
-  const districtSummaries = useMemo<DistrictSummary[]>(() => {
-    const latestRecords = records.filter((r) => r.date === latestDate && r.modalPrice);
-    const grouped = latestRecords.reduce<Record<string, MandiRecord[]>>((acc, r) => {
-      const key = `${r.state}-${r.district}`;
-      acc[key] = [...(acc[key] ?? []), r];
-      return acc;
-    }, {});
+  const stateTrend = useQuery({
+    queryKey: ["mandi-state-trend", crop, days],
+    queryFn: () => getCropTrend(crop, days),
+  });
 
-    const baseRecords = latestRecords.filter((r) => r.district.toLowerCase() === baseDistrict.toLowerCase());
-    const basePrice = average(baseRecords.map((r) => r.modalPrice ?? 0).filter(Boolean));
+  const apmcTrend = useQuery({
+    queryKey: ["mandi-apmc-trend", crop, apmc, days],
+    queryFn: () => getCropTrend(crop, days, apmc),
+  });
 
-    return Object.values(grouped)
-      .map((items) => {
-        const modalPrice = average(items.map((i) => i.modalPrice ?? 0).filter(Boolean));
-        const absoluteDiff = modalPrice - basePrice;
-        return {
-          district: items[0].district,
-          state: items[0].state,
-          markets: items.length,
-          modalPrice,
-          minPrice: Math.min(...items.map((i) => i.minPrice ?? modalPrice)),
-          maxPrice: Math.max(...items.map((i) => i.maxPrice ?? modalPrice)),
-          absoluteDiff,
-          percentDiff: basePrice ? (absoluteDiff / basePrice) * 100 : 0,
-        };
-      })
-      .sort((a, b) => b.modalPrice - a.modalPrice);
-  }, [baseDistrict, latestDate, records]);
+  const trendLabel: Trend = useMemo(
+    () => (apmcTrend.data ? computeTrend(apmcTrend.data) : "stable"),
+    [apmcTrend.data],
+  );
+  const stateTrendLabel: Trend = useMemo(
+    () => (stateTrend.data ? computeTrend(stateTrend.data) : "stable"),
+    [stateTrend.data],
+  );
 
-  const baseSummary = districtSummaries.find((i) => i.district.toLowerCase() === baseDistrict.toLowerCase());
-  const highest = districtSummaries[0];
-  const lowest = districtSummaries.at(-1);
+  const sortedAll = useMemo(() => {
+    const list = (latestAll.data ?? []).slice().sort((a, b) => b.modal - a.modal);
+    return list;
+  }, [latestAll.data]);
 
-  const timeSeries = useMemo(() => {
-    const grouped = records.reduce<Record<string, number[]>>((acc, r) => {
-      if (r.district.toLowerCase() === baseDistrict.toLowerCase() && r.modalPrice) {
-        acc[r.date] = [...(acc[r.date] ?? []), r.modalPrice];
-      }
-      return acc;
-    }, {});
-    return Object.entries(grouped).map(([date, prices]) => ({ date, modalPrice: Math.round(average(prices)) })).sort((a, b) => a.date.localeCompare(b.date));
-  }, [baseDistrict, records]);
+  const best = sortedAll[0];
+  const worst = sortedAll[sortedAll.length - 1];
+  const spread = best && worst ? best.modal - worst.modal : 0;
 
-  const trend = timeSeries.length > 1 ? timeSeries.at(-1)!.modalPrice - timeSeries[0].modalPrice : 0;
-  const volatility = Math.round(stddev(timeSeries.map((p) => p.modalPrice)));
-  const barData = districtSummaries.slice(0, 12).map((i) => ({ district: i.district, districtPrice: Math.round(i.modalPrice) }));
+  // Restrict bar chart to ~8 nearby APMCs (here: top 8 by data, includes selected)
+  const barData = useMemo(() => {
+    if (!latestAll.data) return [];
+    const set = new Map(latestAll.data.map((r) => [r.apmc, r]));
+    const ordered = Array.from(set.values())
+      .sort((a, b) => b.modal - a.modal)
+      .slice(0, 8);
+    if (!ordered.find((r) => r.apmc === apmc)) {
+      const sel = set.get(apmc);
+      if (sel) ordered[ordered.length - 1] = sel;
+    }
+    return ordered.sort((a, b) => b.modal - a.modal).map((r) => ({
+      apmc: r.apmc,
+      modal: r.modal,
+      isBest: best && r.apmc === best.apmc,
+      isSelected: r.apmc === apmc,
+    }));
+  }, [latestAll.data, apmc, best]);
 
-  const downloadCsv = () => {
-    const headers = ["District", "State", "Markets", "Modal Price", "Min Price", "Max Price", "Diff vs Base", "Diff %"];
-    const rows = districtSummaries.map((i) => [i.district, i.state, i.markets, Math.round(i.modalPrice), Math.round(i.minPrice), Math.round(i.maxPrice), Math.round(i.absoluteDiff), i.percentDiff.toFixed(2)]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mandi-${crop}-${latestDate || today}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const TrendBadge = ({ t }: { t: Trend }) => {
+    const m = trendMeta[t];
+    const Icon = m.icon;
+    return (
+      <Badge variant="outline" className={`gap-1.5 px-3 py-1 text-sm font-semibold ${m.cls}`}>
+        <span>{m.emoji}</span>
+        <Icon className="h-3.5 w-3.5" />
+        {m.label}
+      </Badge>
+    );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-6 pb-10">
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Mandi Price Intelligence</h1>
-          <p className="mt-1 text-muted-foreground">AGMARKNET prices · comparisons use latest available date · trends use historical range.</p>
-          {latestDate ? <Badge variant="secondary" className="mt-2"><CalendarDays className="mr-1 h-3 w-3" />Data as of {latestDate}{data?.usedLatestAvailable ? " (latest available)" : ""}</Badge> : null}
+          <h1 className="text-3xl font-bold tracking-tight">Maharashtra Mandi Intelligence</h1>
+          <p className="text-muted-foreground mt-1">
+            Live APMC price analytics for farmers and traders across {STATE_NAME}.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={downloadCsv} disabled={!districtSummaries.length}><Download className="mr-2 h-4 w-4" />CSV</Button>
-          <Button onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />Refresh</Button>
+        <Badge variant="secondary" className="gap-1.5">
+          <Sparkles className="h-3.5 w-3.5" />
+          State: Maharashtra
+        </Badge>
+      </div>
+
+      {/* Sticky filter bar */}
+      <div className="sticky top-0 z-20 -mx-2 px-2 py-3 backdrop-blur bg-background/80 border-b border-border">
+        <div className="grid gap-3 md:grid-cols-2 max-w-3xl">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <Wheat className="h-3.5 w-3.5" /> Crop
+            </label>
+            <Select value={crop} onValueChange={setCrop}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CROPS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <Store className="h-3.5 w-3.5" /> APMC / Mandi
+            </label>
+            <Select value={apmc} onValueChange={setApmc}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {APMCS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Filters</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <div className="space-y-2"><Label>Crop</Label><Select value={crop} onValueChange={setCrop}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{crops.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label>Scope</Label><ToggleGroup type="single" value={scope} onValueChange={(v) => v && setScope(v as "State" | "India")} className="justify-start"><ToggleGroupItem value="State">State</ToggleGroupItem><ToggleGroupItem value="India">India</ToggleGroupItem></ToggleGroup></div>
-          <div className="space-y-2"><Label>State</Label><Select value={state} onValueChange={setState} disabled={scope === "India"}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{states.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label>Base district</Label><Input value={baseDistrict} onChange={(e) => setBaseDistrict(e.target.value)} placeholder="Nashik" /></div>
-          <div className="space-y-2"><Label>From (trend)</Label><Input type="date" value={startDate} max={endDate} onChange={(e) => setStartDate(e.target.value)} /></div>
-          <div className="space-y-2"><Label>To (trend)</Label><Input type="date" value={endDate} min={startDate} max={today} onChange={(e) => setEndDate(e.target.value)} /></div>
-        </CardContent>
-      </Card>
-
-      {error ? <Card className="border-destructive/30"><CardContent className="p-4 text-sm text-destructive">Unable to fetch mandi prices. Try a different crop, scope, or date.</CardContent></Card> : null}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card><CardContent className="p-5"><div className="flex items-center gap-3"><IndianRupee className="h-5 w-5 text-primary" /><div><p className="text-sm text-muted-foreground">{baseDistrict} modal price</p><p className="text-2xl font-bold">₹{currency.format(baseSummary?.modalPrice ?? 0)}</p><p className="text-xs text-muted-foreground">{baseSummary ? `${baseSummary.markets} market(s)` : "No data for base"}</p></div></div></CardContent></Card>
-        <Card><CardContent className="p-5"><div className="flex items-center gap-3"><ArrowUp className="h-5 w-5 text-success" /><div><p className="text-sm text-muted-foreground">Best district to sell</p><p className="text-xl font-bold">{highest?.district ?? "—"}</p><p className="text-xs text-muted-foreground">₹{currency.format(highest?.modalPrice ?? 0)} / qtl{highest?.state ? ` · ${highest.state}` : ""}</p></div></div></CardContent></Card>
-        <Card><CardContent className="p-5"><div className="flex items-center gap-3"><ArrowDown className="h-5 w-5 text-destructive" /><div><p className="text-sm text-muted-foreground">Lowest district</p><p className="text-xl font-bold">{lowest?.district ?? "—"}</p><p className="text-xs text-muted-foreground">₹{currency.format(lowest?.modalPrice ?? 0)} / qtl{lowest?.state ? ` · ${lowest.state}` : ""}</p></div></div></CardContent></Card>
-        <Card><CardContent className="p-5"><div className="flex items-center gap-3">{trend >= 0 ? <TrendingUp className="h-5 w-5 text-success" /> : <TrendingDown className="h-5 w-5 text-destructive" />}<div><p className="text-sm text-muted-foreground">{baseDistrict} trend · volatility</p><p className="text-xl font-bold">{trend >= 0 ? "Rising" : "Falling"} ₹{currency.format(Math.abs(trend))}</p><p className="text-xs text-muted-foreground">σ ₹{currency.format(volatility)}</p></div></div></CardContent></Card>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><CalendarDays className="h-5 w-5 text-primary" />Trend · {baseDistrict} ({timeSeries.length} days)</CardTitle></CardHeader>
+      {/* Price cards row */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <IndianRupee className="h-4 w-4" /> Modal Price
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-72 w-full">
-              <LineChart data={timeSeries}><CartesianGrid vertical={false} /><XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} /><YAxis tickFormatter={(v) => `₹${v}`} width={70} /><ChartTooltip content={<ChartTooltipContent />} /><Line type="monotone" dataKey="modalPrice" stroke="var(--color-modalPrice)" strokeWidth={3} dot={false} /></LineChart>
-            </ChartContainer>
+            {latestApmc.isLoading ? (
+              <Skeleton className="h-10 w-40" />
+            ) : (
+              <>
+                <div className="text-4xl font-bold text-primary">
+                  {formatINR(latestApmc.data?.modal)}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">per quintal · {apmc} APMC</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><BarChart3 className="h-5 w-5 text-secondary" />District comparison · {latestDate || "latest"}</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Price Range</CardTitle>
+          </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-72 w-full">
-              <BarChart data={barData}><CartesianGrid vertical={false} /><XAxis dataKey="district" tickLine={false} axisLine={false} tickMargin={8} interval={0} angle={-20} textAnchor="end" height={70} /><YAxis tickFormatter={(v) => `₹${v}`} width={70} /><ChartTooltip content={<ChartTooltipContent />} /><Bar dataKey="districtPrice" fill="var(--color-districtPrice)" radius={[6, 6, 0, 0]} /></BarChart>
-            </ChartContainer>
+            {latestApmc.isLoading ? (
+              <Skeleton className="h-10 w-48" />
+            ) : (
+              <>
+                <div className="text-3xl font-bold flex items-center gap-2">
+                  <span className="text-destructive flex items-center"><ArrowDownRight className="h-5 w-5" />{formatINR(latestApmc.data?.min)}</span>
+                  <span className="text-muted-foreground text-2xl">–</span>
+                  <span className="text-success flex items-center">{formatINR(latestApmc.data?.max)}<ArrowUpRight className="h-5 w-5" /></span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">min – max at {apmc}</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Market Trend</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {apmcTrend.isLoading ? <Skeleton className="h-8 w-32" /> : <TrendBadge t={trendLabel} />}
+            <p className="text-xs text-muted-foreground">Last {days} days · {apmc}</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* State trend chart */}
       <Card>
-        <CardHeader><CardTitle className="text-lg">Comparison table · latest data ({districtSummaries.length} districts)</CardTitle></CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader><TableRow><TableHead>District</TableHead><TableHead>State</TableHead><TableHead>Markets</TableHead><TableHead>Modal</TableHead><TableHead>Min</TableHead><TableHead>Max</TableHead><TableHead>vs {baseDistrict}</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {districtSummaries.map((i) => (
-                <TableRow key={`${i.state}-${i.district}`} className={i.district === highest?.district ? "bg-primary/5" : i.district === lowest?.district ? "bg-destructive/5" : undefined}>
-                  <TableCell className="font-medium">{i.district}</TableCell><TableCell>{i.state}</TableCell><TableCell>{i.markets}</TableCell><TableCell>₹{currency.format(i.modalPrice)}</TableCell><TableCell>₹{currency.format(i.minPrice)}</TableCell><TableCell>₹{currency.format(i.maxPrice)}</TableCell>
-                  <TableCell><span className={i.absoluteDiff >= 0 ? "text-success" : "text-destructive"}>{i.absoluteDiff >= 0 ? "+" : ""}₹{currency.format(i.absoluteDiff)} ({i.percentDiff.toFixed(1)}%)</span></TableCell>
-                  <TableCell>{i.district === highest?.district ? <Badge className="bg-primary text-primary-foreground">Highest</Badge> : i.district === lowest?.district ? <Badge variant="destructive">Lowest</Badge> : <Badge variant="secondary">Market</Badge>}</TableCell>
-                </TableRow>
-              ))}
-              {!districtSummaries.length ? <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">{isFetching ? "Loading mandi data…" : "No mandi records found. Try another crop, scope, or date range."}</TableCell></TableRow> : null}
-            </TableBody>
-          </Table>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>{crop} – Maharashtra Avg. Trend</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Modal price (₹/quintal) state-wide average</p>
+          </div>
+          <div className="flex gap-1 rounded-lg border p-1 bg-muted/30">
+            {[7, 15, 30].map((d) => (
+              <Button
+                key={d}
+                size="sm"
+                variant={days === d ? "default" : "ghost"}
+                className="h-7 px-3 text-xs"
+                onClick={() => setDays(d as 7 | 15 | 30)}
+              >
+                {d} days
+              </Button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {stateTrend.isLoading || !stateTrend.data ? (
+            <Skeleton className="h-[300px] w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={stateTrend.data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tickFormatter={(d) => d.slice(5)}
+                />
+                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "0.5rem",
+                  }}
+                  formatter={(v: number) => [formatINR(v), "Modal"]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="modal"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2.5}
+                  dot={{ r: 3, fill: "hsl(var(--primary))" }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
+
+      {/* Nearby mandi comparison */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Nearby Mandi Comparison</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Modal price of {crop} across major Maharashtra APMCs (highest first)
+          </p>
+        </CardHeader>
+        <CardContent>
+          {latestAll.isLoading || !barData.length ? (
+            <Skeleton className="h-[320px] w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis dataKey="apmc" type="category" width={90} tick={{ fontSize: 12, fill: "hsl(var(--foreground))" }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "0.5rem",
+                  }}
+                  formatter={(v: number) => [formatINR(v), "Modal"]}
+                />
+                <Bar dataKey="modal" radius={[0, 6, 6, 0]}>
+                  {barData.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={
+                        entry.isBest
+                          ? "hsl(var(--success))"
+                          : entry.isSelected
+                            ? "hsl(var(--secondary))"
+                            : "hsl(var(--primary) / 0.65)"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Insights row */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-success/40 bg-success/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">🏆 Best Mandi to Sell</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {best ? (
+              <>
+                <div className="text-2xl font-bold text-success">{best.apmc}</div>
+                <p className="text-sm font-semibold mt-1">{formatINR(best.modal)}</p>
+              </>
+            ) : <Skeleton className="h-12 w-full" />}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">📉 Lowest Price Mandi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {worst ? (
+              <>
+                <div className="text-2xl font-bold text-destructive">{worst.apmc}</div>
+                <p className="text-sm font-semibold mt-1">{formatINR(worst.modal)}</p>
+              </>
+            ) : <Skeleton className="h-12 w-full" />}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">↔️ Price Spread</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatINR(spread)}</div>
+            <p className="text-xs text-muted-foreground mt-1">max − min across mandis</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">🌾 State-wide Trend</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <TrendBadge t={stateTrendLabel} />
+            <p className="text-xs text-muted-foreground">Maharashtra · last {days}d</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-};
-
-export default MandiPrices;
+}
