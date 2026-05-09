@@ -19,7 +19,12 @@ for (const [canonical, aliases] of Object.entries(MARKET_MAP)) {
 
 export function normalizeMarket(apiMarketName: string): string | null {
   if (!apiMarketName) return null;
-  const trimmed = apiMarketName.trim();
+  // Strip common suffixes like " APMC", "(Pimpri)" etc.
+  const trimmed = apiMarketName
+    .replace(/\bAPMC\b/gi, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!trimmed) return null;
   const canonical = LOOKUP.get(trimmed.toLowerCase());
   if (canonical) return canonical;
