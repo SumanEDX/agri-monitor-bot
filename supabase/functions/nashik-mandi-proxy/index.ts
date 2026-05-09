@@ -27,6 +27,28 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    const action = String(body.action ?? "records");
+
+    if (action === "commodities") {
+      // Sample latest 1000 records to derive distinct commodity list for Maharashtra
+      const params = new URLSearchParams({
+        "api-key": API_KEY,
+        format: "json",
+        limit: "1000",
+        offset: "0",
+        "filters[state.keyword]": "Maharashtra",
+        "sort[0][field]": "arrival_date",
+        "sort[0][order]": "desc",
+      });
+      const rows = await fetchPage(params);
+      const set = new Set<string>();
+      for (const r of rows) if (r?.commodity) set.add(String(r.commodity).trim());
+      return new Response(
+        JSON.stringify({ commodities: Array.from(set).sort((a, b) => a.localeCompare(b)) }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const commodity = String(body.commodity ?? "Onion").trim().slice(0, 80);
     const pages = Math.max(1, Math.min(6, Number(body.pages ?? 3)));
     const limit = Math.max(1, Math.min(1000, Number(body.limit ?? 500)));
