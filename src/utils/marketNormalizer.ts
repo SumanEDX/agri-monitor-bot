@@ -19,5 +19,13 @@ for (const [canonical, aliases] of Object.entries(MARKET_MAP)) {
 
 export function normalizeMarket(apiMarketName: string): string | null {
   if (!apiMarketName) return null;
-  return LOOKUP.get(apiMarketName.trim().toLowerCase()) ?? null;
+  const trimmed = apiMarketName.trim();
+  if (!trimmed) return null;
+  const canonical = LOOKUP.get(trimmed.toLowerCase());
+  if (canonical) return canonical;
+  // Fallback: accept any Maharashtra market so the dashboard isn't empty
+  // when the preferred Nashik APMCs haven't reported yet.
+  return trimmed
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
