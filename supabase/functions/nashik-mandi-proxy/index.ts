@@ -38,7 +38,7 @@ serve(async (req) => {
         format: "json",
         limit: String(limit),
         offset: String(p * limit),
-        "filters[state]": "Maharashtra",
+        "filters[state.keyword]": "Maharashtra",
         "filters[commodity]": commodity,
         "sort[0][field]": "arrival_date",
         "sort[0][order]": "desc",
