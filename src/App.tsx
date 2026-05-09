@@ -13,6 +13,7 @@ import Weather from "./pages/Weather";
 import CropWaterProductivity from "./pages/CropWaterProductivity";
 import WaterSources from "./pages/WaterSources";
 import NashikDashboard from "./components/Dashboard";
+import HelloKisaanMandi from "./pages/HelloKisaanMandi";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -34,7 +35,7 @@ const App = () => (
               <Route path="/weather" element={<Weather />} />
               <Route path="/crop-water" element={<CropWaterProductivity />} />
               <Route path="/water-sources" element={<WaterSources />} />
-              <Route path="/mandi-prices" element={<NashikDashboard />} />
+              <Route path="/mandi-prices" element={<HelloKisaanMandi />} />
               <Route path="/nashik-mandi" element={<NashikDashboard />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
