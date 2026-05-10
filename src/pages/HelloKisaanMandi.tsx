@@ -100,6 +100,26 @@ function cleanRecords(raw: RawRecord[]): MandiRecord[] {
   return out;
 }
 
+// Whitelist of Nashik-region APMCs to display.
+const ALLOWED_MARKETS = [
+  "Sinnar APMC",
+  "Lasalgaon APMC",
+  "Pimpalgaon Baswant APMC",
+  "Nashik APMC",
+  "Yeola APMC",
+  "Niphad APMC",
+] as const;
+
+function canonicalizeMarket(name: string): string | null {
+  const n = name.trim().toLowerCase();
+  for (const allowed of ALLOWED_MARKETS) {
+    const key = allowed.toLowerCase();
+    const stem = key.replace(/\s+apmc$/, "");
+    if (n === key || n === stem || n.startsWith(stem)) return allowed;
+  }
+  return null;
+}
+
 // Default fallback list (used until API returns)
 const DEFAULT_COMMODITIES = [
   "Onion", "Tomato", "Potato", "Wheat", "Soyabean", "Cotton", "Maize",
