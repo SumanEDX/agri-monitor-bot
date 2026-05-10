@@ -37,8 +37,6 @@ serve(async (req) => {
         limit: "1000",
         offset: "0",
         "filters[state.keyword]": "Maharashtra",
-        "sort[0][field]": "arrival_date",
-        "sort[0][order]": "desc",
       });
       const rows = await fetchPage(params);
       const set = new Set<string>();
@@ -62,8 +60,6 @@ serve(async (req) => {
         offset: String(p * limit),
         "filters[state.keyword]": "Maharashtra",
         "filters[commodity]": commodity,
-        "sort[0][field]": "arrival_date",
-        "sort[0][order]": "desc",
       });
       const rows = await fetchPage(params);
       all.push(...rows);
