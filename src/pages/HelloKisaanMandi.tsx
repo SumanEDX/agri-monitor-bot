@@ -100,6 +100,26 @@ function cleanRecords(raw: RawRecord[]): MandiRecord[] {
   return out;
 }
 
+// Whitelist of Nashik-region APMCs to display.
+const ALLOWED_MARKETS = [
+  "Sinnar APMC",
+  "Lasalgaon APMC",
+  "Pimpalgaon Baswant APMC",
+  "Nashik APMC",
+  "Yeola APMC",
+  "Niphad APMC",
+] as const;
+
+function canonicalizeMarket(name: string): string | null {
+  const n = name.trim().toLowerCase();
+  for (const allowed of ALLOWED_MARKETS) {
+    const key = allowed.toLowerCase();
+    const stem = key.replace(/\s+apmc$/, "");
+    if (n === key || n === stem || n.startsWith(stem)) return allowed;
+  }
+  return null;
+}
+
 // Default fallback list (used until API returns)
 const DEFAULT_COMMODITIES = [
   "Onion", "Tomato", "Potato", "Wheat", "Soyabean", "Cotton", "Maize",
@@ -113,7 +133,14 @@ async function fetchCommodityRecords(commodity: string): Promise<MandiRecord[]> 
     body: { commodity, pages: 6, limit: 1000 },
   });
   if (error) throw new Error(error.message);
-  return cleanRecords(((data as { records?: RawRecord[] })?.records) ?? []);
+  const cleaned = cleanRecords(((data as { records?: RawRecord[] })?.records) ?? []);
+  // Restrict to the whitelisted Nashik APMCs only.
+  const filtered: MandiRecord[] = [];
+  for (const r of cleaned) {
+    const canon = canonicalizeMarket(r.market);
+    if (canon) filtered.push({ ...r, market: canon });
+  }
+  return filtered;
 }
 
 async function fetchAvailableCommodities(): Promise<string[]> {
@@ -305,6 +332,15 @@ export default function HelloKisaanMandi() {
             </span>
           </div>
         </div>
+
+        {/* No-data banner */}
+        {!isLoading && allRecords.length === 0 && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong>No data today.</strong> None of the tracked Nashik APMCs (
+            {ALLOWED_MARKETS.join(", ")}) have reported <em>{commodity}</em> prices to AGMARKNET yet.
+            Reporting usually appears later in the day or the next working day.
+          </div>
+        )}
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
