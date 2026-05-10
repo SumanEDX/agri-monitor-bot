@@ -133,7 +133,14 @@ async function fetchCommodityRecords(commodity: string): Promise<MandiRecord[]> 
     body: { commodity, pages: 6, limit: 1000 },
   });
   if (error) throw new Error(error.message);
-  return cleanRecords(((data as { records?: RawRecord[] })?.records) ?? []);
+  const cleaned = cleanRecords(((data as { records?: RawRecord[] })?.records) ?? []);
+  // Restrict to the whitelisted Nashik APMCs only.
+  const filtered: MandiRecord[] = [];
+  for (const r of cleaned) {
+    const canon = canonicalizeMarket(r.market);
+    if (canon) filtered.push({ ...r, market: canon });
+  }
+  return filtered;
 }
 
 async function fetchAvailableCommodities(): Promise<string[]> {
