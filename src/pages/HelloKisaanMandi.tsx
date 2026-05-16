@@ -9,17 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  ArrowDown,
-  ArrowUp,
-  Building2,
-  CalendarDays,
-  Loader2,
-  MapPin,
-  Minus,
-  Search,
-  Sprout,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, Building2, CalendarDays, Loader as Loader2, MapPin, Minus, Search, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -31,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { queryHistoricalData, getTrendData } from "@/services/historicalMandiService";
 
 // ---------------- Types ----------------
 interface RawRecord {
@@ -192,6 +183,14 @@ export default function HelloKisaanMandi() {
     queryKey: ["mh-records", commodity],
     queryFn: () => fetchCommodityRecords(commodity),
     staleTime: 1000 * 60 * 5,
+  });
+
+  const historicalQuery = useQuery({
+    queryKey: ["mh-historical", commodity, market],
+    queryFn: () =>
+      market ? queryHistoricalData({ commodity, market, limit: 100 }) : Promise.resolve([]),
+    staleTime: 1000 * 60 * 10,
+    enabled: !!market,
   });
 
   const allRecords = recordsQuery.data ?? [];
@@ -489,6 +488,45 @@ export default function HelloKisaanMandi() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Historical data info */}
+        {historicalQuery.data && historicalQuery.data.length > 0 && (
+          <Card className="border-blue-100 bg-blue-50/40">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Historical Price Data</h3>
+              <p className="text-sm text-slate-600 mb-4">
+                {historicalQuery.data.length} historical price records available for {commodity} in {market}.
+                Data goes back to {historicalQuery.data[historicalQuery.data.length - 1]?.date || "—"}.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <div className="text-xs text-slate-500 font-medium">AVERAGE MODAL PRICE</div>
+                  <div className="text-lg font-bold text-slate-900 mt-1">
+                    ₹ {Math.round(
+                      historicalQuery.data.reduce((a, b) => a + b.modal_price, 0) / historicalQuery.data.length
+                    ).toLocaleString("en-IN")}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-medium">HIGHEST PRICE</div>
+                  <div className="text-lg font-bold text-slate-900 mt-1">
+                    ₹ {Math.max(...historicalQuery.data.map((r) => r.modal_price)).toLocaleString("en-IN")}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-medium">LOWEST PRICE</div>
+                  <div className="text-lg font-bold text-slate-900 mt-1">
+                    ₹ {Math.min(...historicalQuery.data.map((r) => r.modal_price)).toLocaleString("en-IN")}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 font-medium">RECORDS</div>
+                  <div className="text-lg font-bold text-slate-900 mt-1">{historicalQuery.data.length}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Nearby mandis */}
         <div>
