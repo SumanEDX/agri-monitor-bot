@@ -621,27 +621,6 @@ export default function HelloKisaanMandi() {
         </div>
 
         {/* All Maharashtra mandis grid */}
-        {allMarkets.length > 0 && (
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">{commodity} Prices Across Major Mandis in Maharashtra</h2>
-            <p className="text-sm text-slate-600 mb-4">
-              Check today's {commodity} mandi prices across important APMC markets in Maharashtra. Compare rates to find the best nearby market.
-            </p>
-            <div className="rounded-xl border bg-white p-4 columns-2 md:columns-4 gap-4">
-              {allMarkets.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMarket(m)}
-                  className={`block w-full text-left text-sm py-1 hover:text-emerald-700 ${
-                    m === market ? "text-emerald-700 font-semibold" : "text-slate-700"
-                  }`}
-                >
-                  {commodity} price in <span className="underline decoration-dotted">{m}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
