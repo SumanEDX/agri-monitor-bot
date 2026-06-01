@@ -433,8 +433,7 @@ export default function HelloKisaanMandi() {
         {/* No-data banner */}
         {!isLoading && allRecords.length === 0 && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <strong>No data today.</strong> None of the tracked Nashik APMCs (
-            {ALLOWED_MARKETS.join(", ")}) have reported <em>{commodity}</em> prices to AGMARKNET yet.
+            <strong>No data today.</strong> None of the tracked Maharashtra APMCs have reported <em>{commodity}</em> prices to AGMARKNET yet.
             Reporting usually appears later in the day or the next working day.
           </div>
         )}
