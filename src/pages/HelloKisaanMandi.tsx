@@ -100,14 +100,111 @@ function cleanRecords(raw: RawRecord[]): MandiRecord[] {
   return out;
 }
 
-// Whitelist of Nashik-region APMCs to display.
+// Comprehensive list of Maharashtra APMCs to display.
 const ALLOWED_MARKETS = [
+  // Nashik Division
   "Sinnar APMC",
   "Lasalgaon APMC",
   "Pimpalgaon Baswant APMC",
   "Nashik APMC",
   "Yeola APMC",
   "Niphad APMC",
+  "Manmad APMC",
+  "Chandvad APMC",
+  "Malegaon APMC",
+  // Pune Division
+  "Pune APMC",
+  "Baramati APMC",
+  "Indapur APMC",
+  "Bhosari APMC",
+  "Chakan APMC",
+  "Khadki APMC",
+  "Saswad APMC",
+  "Junnar APMC",
+  // Nagpur / Amravati Division
+  "Nagpur APMC",
+  "Wardha APMC",
+  "Amravati APMC",
+  "Yavatmal APMC",
+  "Akola APMC",
+  "Achalpur APMC",
+  "Washim APMC",
+  "Hinganghat APMC",
+  // Aurangabad Division
+  "Aurangabad APMC",
+  "Jalna APMC",
+  "Beed APMC",
+  "Latur APMC",
+  "Osmanabad APMC",
+  "Nanded APMC",
+  "Parbhani APMC",
+  "Hingoli APMC",
+  // Kolhapur / Sangli Division
+  "Kolhapur APMC",
+  "Sangli APMC",
+  "Ichalkaranji APMC",
+  "Karad APMC",
+  "Miraj APMC",
+  "Tasgaon APMC",
+  "Kagal APMC",
+  // Solapur Division
+  "Solapur APMC",
+  "Pandharpur APMC",
+  "Akkalkot APMC",
+  "Barshi APMC",
+  "Sangola APMC",
+  // Ahmednagar Division
+  "Ahmednagar APMC",
+  "Shrirampur APMC",
+  "Rahuri APMC",
+  "Pathardi APMC",
+  "Kopargaon APMC",
+  "Shevgaon APMC",
+  // Jalgaon / Dhule Division
+  "Jalgaon APMC",
+  "Bhusawal APMC",
+  "Chalisgaon APMC",
+  "Pachora APMC",
+  "Jamner APMC",
+  "Erandol APMC",
+  "Dhule APMC",
+  "Nandurbar APMC",
+  "Shirpur APMC",
+  "Dondaicha APMC",
+  // Mumbai / Thane Division
+  "Mumbai APMC",
+  "Vashi APMC",
+  "Thane APMC",
+  "Kalyan APMC",
+  "Bhiwandi APMC",
+  "Vasai APMC",
+  // Ratnagiri / Sindhudurg
+  "Ratnagiri APMC",
+  "Sangameshwar APMC",
+  "Kankavli APMC",
+  "Kudal APMC",
+  // Satara / Sangli
+  "Satara APMC",
+  "Wai APMC",
+  "Phaltan APMC",
+  "Vita APMC",
+  "Islampur APMC",
+  // Chandrapur / Gadchiroli
+  "Chandrapur APMC",
+  "Ballarpur APMC",
+  "Gadchiroli APMC",
+  "Warora APMC",
+  // Gondia / Bhandara
+  "Gondia APMC",
+  "Bhandara APMC",
+  // Buldhana
+  "Buldhana APMC",
+  "Malkapur APMC",
+  "Khamgaon APMC",
+  // Palghar
+  "Palghar APMC",
+  "Dahanu APMC",
+  "Boisar APMC",
 ] as const;
 
 function canonicalizeMarket(name: string): string | null {
