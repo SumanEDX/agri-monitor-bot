@@ -50,11 +50,7 @@ const MapView = ({ markers, selectedId, onMarkerClick, height = "300px", classNa
   const validMarkers = markers.filter((m) => m.latitude && m.longitude);
 
   if (validMarkers.length === 0) {
-    return (
-      <div className={`flex items-center justify-center bg-muted rounded-lg text-muted-foreground text-sm ${className}`} style={{ height }}>
-        No locations set. Add latitude/longitude to see the map.
-      </div>
-    );
+    return null;
   }
 
   const selected = selectedId ? validMarkers.find((m) => m.id === selectedId) : null;
