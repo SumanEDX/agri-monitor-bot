@@ -139,13 +139,24 @@ export async function getCropTrend(
   days: number,
   apmc?: string,
 ): Promise<{ date: string; modal: number }[]> {
+  try {
+    const res = await callEdge<{ series: { date: string; modal: number }[] }>({
+      action: "historical",
+      commodity,
+      days,
+      apmc,
+    });
+    if (res.series?.length) return res.series;
+  } catch {
+    /* fall through to fallback */
+  }
+  // Fallback: derive from the recent records cache
   const { records, latestDate } = await fetchCommodityData(commodity);
   if (!latestDate) return [];
   const cutoff = new Date(latestDate);
   cutoff.setDate(cutoff.getDate() - (days - 1));
   const cutoffStr = cutoff.toISOString().slice(0, 10);
   const filtered = records.filter((r) => r.arrival_date >= cutoffStr && (!apmc || r.market === apmc));
-  // average per day
   const byDay = new Map<string, number[]>();
   for (const r of filtered) {
     const arr = byDay.get(r.arrival_date) ?? [];
