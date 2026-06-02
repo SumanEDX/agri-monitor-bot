@@ -731,9 +731,9 @@ function StatCard({
   line2: string;
 }) {
   return (
-    <Card className="border-slate-200">
+    <Card className="border-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-emerald-300 cursor-default group">
       <CardContent className="p-5 space-y-2">
-        <div className="text-[11px] font-semibold tracking-wider text-slate-500">{label}</div>
+        <div className="text-[11px] font-semibold tracking-wider text-slate-500 group-hover:text-emerald-700 transition-colors">{label}</div>
         <div>{primary}</div>
         <div className="text-sm font-medium text-slate-700">{line1}</div>
         <div className="text-xs text-slate-500">{line2}</div>
