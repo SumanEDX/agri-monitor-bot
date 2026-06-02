@@ -572,7 +572,7 @@ export default function HelloKisaanMandi() {
               </div>
             </div>
             <div className="h-72">
-              {isLoading ? (
+              {isLoading || trendQuery.isLoading ? (
                 <div className="h-full flex items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-emerald-700" />
                 </div>
