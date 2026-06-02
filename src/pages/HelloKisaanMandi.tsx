@@ -291,6 +291,21 @@ export default function HelloKisaanMandi() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Historical trend series (per-day modal avg) fetched directly from AGMARKNET
+  // via the mandi-prices edge function, which queries each day individually so
+  // we actually get back a multi-day series instead of just today's snapshot.
+  const trendQuery = useQuery({
+    queryKey: ["mh-trend", commodity, trendDays],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("mandi-prices", {
+        body: { action: "historical", commodity, days: trendDays },
+      });
+      if (error) throw new Error(error.message);
+      return ((data as { series?: { date: string; modal: number }[] })?.series) ?? [];
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+
   const allRecords = recordsQuery.data ?? [];
 
   // Latest available date (across Maharashtra for this commodity)
@@ -344,6 +359,9 @@ export default function HelloKisaanMandi() {
 
   // Trend chart data — state-wide daily average for selected commodity
   const trendData = useMemo(() => {
+    const fromApi = trendQuery.data ?? [];
+    if (fromApi.length >= 2) return fromApi;
+    // Fallback: derive from already-loaded records if the historical call fails
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - trendDays);
     const cutoffIso = cutoff.toISOString().slice(0, 10);
@@ -359,7 +377,7 @@ export default function HelloKisaanMandi() {
         modal: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length),
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [allRecords, trendDays]);
+  }, [trendQuery.data, allRecords, trendDays]);
 
   // Nearby mandis = same district as selected market, then fill with most active markets
   const nearbyMandis = useMemo(() => {
