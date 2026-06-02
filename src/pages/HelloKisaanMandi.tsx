@@ -408,6 +408,52 @@ export default function HelloKisaanMandi() {
     return merged.map((r) => ({ market: r.market, district: r.district, modalPrice: r.modalPrice }));
   }, [allRecords, selected, latestDate]);
 
+  // All reporting mandis (latest date) — for the interactive comparison bar chart
+  const allReportingMandis = useMemo(() => {
+    if (!latestDate) return [] as { market: string; district: string; modalPrice: number }[];
+    const byMarket = new Map<string, { sum: number; n: number; district: string }>();
+    for (const r of allRecords) {
+      if (r.date !== latestDate) continue;
+      const cur = byMarket.get(r.market) ?? { sum: 0, n: 0, district: r.district };
+      cur.sum += r.modalPrice;
+      cur.n += 1;
+      cur.district = r.district || cur.district;
+      byMarket.set(r.market, cur);
+    }
+    return Array.from(byMarket.entries())
+      .map(([market, v]) => ({ market, district: v.district, modalPrice: Math.round(v.sum / v.n) }))
+      .sort((a, b) => b.modalPrice - a.modalPrice);
+  }, [allRecords, latestDate]);
+
+  const bestMandi = allReportingMandis[0];
+  const lowestMandi = allReportingMandis[allReportingMandis.length - 1];
+
+  const sortedNearby = useMemo(() => {
+    const list = [...nearbyMandis];
+    if (nearbySort === "high") list.sort((a, b) => b.modalPrice - a.modalPrice);
+    else if (nearbySort === "low") list.sort((a, b) => a.modalPrice - b.modalPrice);
+    else list.sort((a, b) => a.market.localeCompare(b.market));
+    return list;
+  }, [nearbyMandis, nearbySort]);
+
+  // Trend chart with day-over-day delta for richer tooltips
+  const trendDataEnriched = useMemo(
+    () =>
+      trendData.map((d, i) => {
+        const prev = trendData[i - 1]?.modal;
+        const delta = prev ? d.modal - prev : 0;
+        const pct = prev ? (delta / prev) * 100 : 0;
+        return { ...d, delta, pct };
+      }),
+    [trendData],
+  );
+  const trendAvg = useMemo(
+    () => (trendData.length ? Math.round(trendData.reduce((s, d) => s + d.modal, 0) / trendData.length) : 0),
+    [trendData],
+  );
+
+  const QUICK_PICK = ["Onion", "Tomato", "Potato", "Wheat", "Soybean", "Cotton", "Maize", "Gram"];
+
   const isLoading = recordsQuery.isLoading;
   const trendInfo: Record<TrendKind, { label: string; cls: string; icon: typeof ArrowUp; emoji: string; sub: string }> = {
     rising: { label: "Rising", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: ArrowUp, emoji: "📈", sub: "Prices trending higher" },
