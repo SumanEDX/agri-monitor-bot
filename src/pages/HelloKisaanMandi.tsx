@@ -3,7 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
+  Brush,
+  Cell,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,6 +17,8 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
+  Award,
   Building2,
   CalendarDays,
   Loader2,
@@ -19,6 +26,7 @@ import {
   Minus,
   Search,
   Sprout,
+  TrendingDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
