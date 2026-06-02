@@ -3,7 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
+  Brush,
+  Cell,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -12,6 +17,8 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  ArrowUpDown,
+  Award,
   Building2,
   CalendarDays,
   Loader2,
@@ -19,6 +26,7 @@ import {
   Minus,
   Search,
   Sprout,
+  TrendingDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -278,6 +286,7 @@ export default function HelloKisaanMandi() {
   const [commodity, setCommodity] = useState<string>("Onion");
   const [market, setMarket] = useState<string>("");
   const [trendDays, setTrendDays] = useState<7 | 15 | 30>(7);
+  const [nearbySort, setNearbySort] = useState<"high" | "low" | "name">("high");
 
   const commoditiesQuery = useQuery({
     queryKey: ["mh-commodities"],
@@ -399,6 +408,52 @@ export default function HelloKisaanMandi() {
     return merged.map((r) => ({ market: r.market, district: r.district, modalPrice: r.modalPrice }));
   }, [allRecords, selected, latestDate]);
 
+  // All reporting mandis (latest date) — for the interactive comparison bar chart
+  const allReportingMandis = useMemo(() => {
+    if (!latestDate) return [] as { market: string; district: string; modalPrice: number }[];
+    const byMarket = new Map<string, { sum: number; n: number; district: string }>();
+    for (const r of allRecords) {
+      if (r.date !== latestDate) continue;
+      const cur = byMarket.get(r.market) ?? { sum: 0, n: 0, district: r.district };
+      cur.sum += r.modalPrice;
+      cur.n += 1;
+      cur.district = r.district || cur.district;
+      byMarket.set(r.market, cur);
+    }
+    return Array.from(byMarket.entries())
+      .map(([market, v]) => ({ market, district: v.district, modalPrice: Math.round(v.sum / v.n) }))
+      .sort((a, b) => b.modalPrice - a.modalPrice);
+  }, [allRecords, latestDate]);
+
+  const bestMandi = allReportingMandis[0];
+  const lowestMandi = allReportingMandis[allReportingMandis.length - 1];
+
+  const sortedNearby = useMemo(() => {
+    const list = [...nearbyMandis];
+    if (nearbySort === "high") list.sort((a, b) => b.modalPrice - a.modalPrice);
+    else if (nearbySort === "low") list.sort((a, b) => a.modalPrice - b.modalPrice);
+    else list.sort((a, b) => a.market.localeCompare(b.market));
+    return list;
+  }, [nearbyMandis, nearbySort]);
+
+  // Trend chart with day-over-day delta for richer tooltips
+  const trendDataEnriched = useMemo(
+    () =>
+      trendData.map((d, i) => {
+        const prev = trendData[i - 1]?.modal;
+        const delta = prev ? d.modal - prev : 0;
+        const pct = prev ? (delta / prev) * 100 : 0;
+        return { ...d, delta, pct };
+      }),
+    [trendData],
+  );
+  const trendAvg = useMemo(
+    () => (trendData.length ? Math.round(trendData.reduce((s, d) => s + d.modal, 0) / trendData.length) : 0),
+    [trendData],
+  );
+
+  const QUICK_PICK = ["Onion", "Tomato", "Potato", "Wheat", "Soybean", "Cotton", "Maize", "Gram"];
+
   const isLoading = recordsQuery.isLoading;
   const trendInfo: Record<TrendKind, { label: string; cls: string; icon: typeof ArrowUp; emoji: string; sub: string }> = {
     rising: { label: "Rising", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: ArrowUp, emoji: "📈", sub: "Prices trending higher" },
@@ -455,6 +510,26 @@ export default function HelloKisaanMandi() {
             Reporting usually appears later in the day or the next working day.
           </div>
         )}
+
+        {/* Commodity quick-pick chips */}
+        <div className="flex flex-wrap gap-2">
+          {QUICK_PICK.map((c) => {
+            const active = c === commodity;
+            return (
+              <button
+                key={c}
+                onClick={() => setCommodity(c)}
+                className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 active:scale-95 ${
+                  active
+                    ? "bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-700/20"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-emerald-400 hover:text-emerald-700"
+                }`}
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -582,7 +657,7 @@ export default function HelloKisaanMandi() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                  <AreaChart data={trendDataEnriched} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="gPrice" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#059669" stopOpacity={0.35} />
@@ -593,10 +668,46 @@ export default function HelloKisaanMandi() {
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(s) => s.slice(5)} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `₹${v}`} />
                     <Tooltip
-                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
-                      formatter={(v: number) => [formatINR(v), "Modal Price"]}
+                      cursor={{ stroke: "#059669", strokeWidth: 1, strokeDasharray: "4 4" }}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", padding: "8px 12px" }}
+                      labelFormatter={(l) => fmtDateLong(String(l))}
+                      formatter={(v: number, _n, p: { payload?: { delta?: number; pct?: number } }) => {
+                        const d = p?.payload?.delta ?? 0;
+                        const pc = p?.payload?.pct ?? 0;
+                        const arrow = d > 0 ? "▲" : d < 0 ? "▼" : "→";
+                        return [
+                          `${formatINR(v)}  ${arrow} ${d ? `${d > 0 ? "+" : ""}${Math.round(d)} (${pc.toFixed(1)}%)` : "no change"}`,
+                          "Modal Price",
+                        ];
+                      }}
                     />
-                    <Area type="monotone" dataKey="modal" stroke="#047857" strokeWidth={2.5} fill="url(#gPrice)" dot={{ r: 3, fill: "#047857" }} />
+                    {trendAvg > 0 && (
+                      <ReferenceLine
+                        y={trendAvg}
+                        stroke="#94a3b8"
+                        strokeDasharray="4 4"
+                        label={{ value: `Avg ₹${trendAvg}`, position: "right", fontSize: 10, fill: "#64748b" }}
+                      />
+                    )}
+                    <Area
+                      type="monotone"
+                      dataKey="modal"
+                      stroke="#047857"
+                      strokeWidth={2.5}
+                      fill="url(#gPrice)"
+                      dot={{ r: 3, fill: "#047857" }}
+                      activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2, fill: "#047857" }}
+                      animationDuration={800}
+                    />
+                    {trendDataEnriched.length > 8 && (
+                      <Brush
+                        dataKey="date"
+                        height={22}
+                        stroke="#047857"
+                        travellerWidth={10}
+                        tickFormatter={(s) => String(s).slice(5)}
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -604,36 +715,150 @@ export default function HelloKisaanMandi() {
           </CardContent>
         </Card>
 
+        {/* Interactive APMC comparison bar chart */}
+        {allReportingMandis.length > 1 && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Compare APMC Prices Today</h2>
+                  <p className="text-sm text-slate-600">
+                    Tap a bar to see that mandi's details. Highest in green, lowest in rose.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-emerald-600" /> Best</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-500" /> Selected</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-rose-500" /> Lowest</span>
+                </div>
+              </div>
+              <div style={{ height: Math.max(220, allReportingMandis.length * 32) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={allReportingMandis}
+                    layout="vertical"
+                    margin={{ top: 4, right: 24, left: 4, bottom: 4 }}
+                  >
+                    <CartesianGrid stroke="#e2e8f0" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `₹${v}`} />
+                    <YAxis
+                      type="category"
+                      dataKey="market"
+                      width={120}
+                      tick={{ fontSize: 12, fill: "#0f172a" }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(16,185,129,0.08)" }}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
+                      formatter={(v: number) => [formatINR(v), "Modal Price"]}
+                    />
+                    <Bar
+                      dataKey="modalPrice"
+                      radius={[0, 6, 6, 0]}
+                      animationDuration={700}
+                      onClick={(d: { market?: string }) => d?.market && setMarket(d.market)}
+                      cursor="pointer"
+                    >
+                      {allReportingMandis.map((r) => {
+                        const color =
+                          r.market === bestMandi?.market
+                            ? "#059669"
+                            : r.market === lowestMandi?.market
+                              ? "#f43f5e"
+                              : r.market === market
+                                ? "#f59e0b"
+                                : "#10b981aa";
+                        return <Cell key={r.market} fill={color} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Nearby mandis */}
         <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            Nearby Mandis for {commodity} Prices {selected?.district ? `In ${selected.district}` : ""}
-          </h2>
-          <p className="text-sm text-slate-600 mb-4">
-            Compare {commodity} mandi prices in nearby markets to find the best selling price today.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">
+                Nearby Mandis for {commodity} Prices {selected?.district ? `In ${selected.district}` : ""}
+              </h2>
+              <p className="text-sm text-slate-600">
+                Compare {commodity} mandi prices in nearby markets to find the best selling price today.
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg border bg-slate-100 p-1 text-xs font-medium self-start">
+              {[
+                { k: "high" as const, label: "Price ↓" },
+                { k: "low" as const, label: "Price ↑" },
+                { k: "name" as const, label: "A–Z" },
+              ].map((opt) => (
+                <button
+                  key={opt.k}
+                  onClick={() => setNearbySort(opt.k)}
+                  className={`px-3 py-1.5 rounded-md transition flex items-center gap-1 ${
+                    nearbySort === opt.k ? "bg-emerald-700 text-white shadow" : "text-slate-700 hover:bg-white"
+                  }`}
+                >
+                  <ArrowUpDown className="h-3 w-3" />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
             </div>
-          ) : nearbyMandis.length === 0 ? (
+          ) : sortedNearby.length === 0 ? (
             <p className="text-sm text-slate-500">No other reporting mandis on {fmtDateLong(latestDate)}.</p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {nearbyMandis.map((m) => (
-                <button
-                  key={m.market}
-                  onClick={() => setMarket(m.market)}
-                  className="text-left rounded-xl border bg-white p-4 hover:border-emerald-500 hover:shadow-md transition group"
-                >
-                  <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-                    <Sprout className="h-4 w-4" />
-                    {m.market}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">{m.district || "Maharashtra"}</div>
-                  <div className="mt-2 text-lg font-bold text-slate-900">{formatINR(m.modalPrice)}<span className="text-xs font-normal text-slate-500"> /qtl</span></div>
-                </button>
-              ))}
+              {sortedNearby.map((m) => {
+                const isBest = bestMandi && m.market === bestMandi.market;
+                const isLowest = lowestMandi && m.market === lowestMandi.market;
+                const isSelected = m.market === market;
+                return (
+                  <button
+                    key={m.market}
+                    onClick={() => setMarket(m.market)}
+                    className={`relative text-left rounded-xl border bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] group ${
+                      isSelected
+                        ? "border-emerald-600 ring-2 ring-emerald-500/30 shadow-md"
+                        : "border-slate-200 hover:border-emerald-400"
+                    }`}
+                  >
+                    {isBest && (
+                      <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-bold">
+                        <Award className="h-3 w-3" /> Best
+                      </span>
+                    )}
+                    {isLowest && !isBest && (
+                      <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-[10px] font-bold">
+                        <TrendingDown className="h-3 w-3" /> Lowest
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                      <Sprout className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                      {m.market}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">{m.district || "Maharashtra"}</div>
+                    <div className="mt-2 text-lg font-bold text-slate-900">
+                      {formatINR(m.modalPrice)}
+                      <span className="text-xs font-normal text-slate-500"> /qtl</span>
+                    </div>
+                    {bestMandi && (
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        {m.modalPrice === bestMandi.modalPrice
+                          ? "Top price today"
+                          : `${formatINR(bestMandi.modalPrice - m.modalPrice)} below top`}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -656,9 +881,9 @@ function StatCard({
   line2: string;
 }) {
   return (
-    <Card className="border-slate-200">
+    <Card className="border-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-emerald-300 cursor-default group">
       <CardContent className="p-5 space-y-2">
-        <div className="text-[11px] font-semibold tracking-wider text-slate-500">{label}</div>
+        <div className="text-[11px] font-semibold tracking-wider text-slate-500 group-hover:text-emerald-700 transition-colors">{label}</div>
         <div>{primary}</div>
         <div className="text-sm font-medium text-slate-700">{line1}</div>
         <div className="text-xs text-slate-500">{line2}</div>
