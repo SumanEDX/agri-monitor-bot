@@ -511,10 +511,28 @@ export default function HelloKisaanMandi() {
           </div>
         )}
 
+        {/* Commodity quick-pick chips */}
+        <div className="flex flex-wrap gap-2">
+          {QUICK_PICK.map((c) => {
+            const active = c === commodity;
+            return (
+              <button
+                key={c}
+                onClick={() => setCommodity(c)}
+                className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 active:scale-95 ${
+                  active
+                    ? "bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-700/20"
+                    : "bg-white text-slate-700 border-slate-200 hover:border-emerald-400 hover:text-emerald-700"
+                }`}
+              >
+                {c}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 -mt-6">
           <StatCard
             label={`${commodity.toUpperCase()} MODAL PRICE TODAY`}
             primary={
