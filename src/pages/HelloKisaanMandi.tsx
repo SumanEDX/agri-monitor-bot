@@ -513,6 +513,8 @@ export default function HelloKisaanMandi() {
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 -mt-6">
           <StatCard
             label={`${commodity.toUpperCase()} MODAL PRICE TODAY`}
             primary={
