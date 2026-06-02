@@ -657,7 +657,7 @@ export default function HelloKisaanMandi() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                  <AreaChart data={trendDataEnriched} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="gPrice" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#059669" stopOpacity={0.35} />
@@ -668,10 +668,46 @@ export default function HelloKisaanMandi() {
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(s) => s.slice(5)} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `₹${v}`} />
                     <Tooltip
-                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
-                      formatter={(v: number) => [formatINR(v), "Modal Price"]}
+                      cursor={{ stroke: "#059669", strokeWidth: 1, strokeDasharray: "4 4" }}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", padding: "8px 12px" }}
+                      labelFormatter={(l) => fmtDateLong(String(l))}
+                      formatter={(v: number, _n, p: { payload?: { delta?: number; pct?: number } }) => {
+                        const d = p?.payload?.delta ?? 0;
+                        const pc = p?.payload?.pct ?? 0;
+                        const arrow = d > 0 ? "▲" : d < 0 ? "▼" : "→";
+                        return [
+                          `${formatINR(v)}  ${arrow} ${d ? `${d > 0 ? "+" : ""}${Math.round(d)} (${pc.toFixed(1)}%)` : "no change"}`,
+                          "Modal Price",
+                        ];
+                      }}
                     />
-                    <Area type="monotone" dataKey="modal" stroke="#047857" strokeWidth={2.5} fill="url(#gPrice)" dot={{ r: 3, fill: "#047857" }} />
+                    {trendAvg > 0 && (
+                      <ReferenceLine
+                        y={trendAvg}
+                        stroke="#94a3b8"
+                        strokeDasharray="4 4"
+                        label={{ value: `Avg ₹${trendAvg}`, position: "right", fontSize: 10, fill: "#64748b" }}
+                      />
+                    )}
+                    <Area
+                      type="monotone"
+                      dataKey="modal"
+                      stroke="#047857"
+                      strokeWidth={2.5}
+                      fill="url(#gPrice)"
+                      dot={{ r: 3, fill: "#047857" }}
+                      activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2, fill: "#047857" }}
+                      animationDuration={800}
+                    />
+                    {trendDataEnriched.length > 8 && (
+                      <Brush
+                        dataKey="date"
+                        height={22}
+                        stroke="#047857"
+                        travellerWidth={10}
+                        tickFormatter={(s) => String(s).slice(5)}
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               )}
