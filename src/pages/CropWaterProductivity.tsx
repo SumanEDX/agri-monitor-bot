@@ -6,15 +6,20 @@ import { Progress } from "@/components/ui/progress";
 import { Droplets, TrendingUp, Thermometer, Sun, Wind, CloudRain } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
+import wheatImg from "@/assets/crop-wheat.jpg";
+import riceImg from "@/assets/crop-rice.jpg";
+import maizeImg from "@/assets/crop-maize.jpg";
+import soybeanImg from "@/assets/crop-soybean.jpg";
+import cottonImg from "@/assets/crop-cotton.jpg";
 
 interface Crop { id: string; name: string; image: string; avgCwp: number; }
 
 const initialCrops: Crop[] = [
-  { id: "wheat", name: "Wheat", image: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400&h=300&fit=crop&crop=center", avgCwp: 6.75 },
-  { id: "rice", name: "Rice", image: "https://images.unsplash.com/photo-1536304993881-460346024534?w=400&h=300&fit=crop&crop=center", avgCwp: 5.20 },
-  { id: "maize", name: "Maize", image: "https://images.unsplash.com/photo-1601593768892-eb0e8e089dfa?w=400&h=300&fit=crop&crop=center", avgCwp: 7.10 },
-  { id: "soybean", name: "Soybean", image: "https://images.unsplash.com/photo-1599709524901-52f0385eb8ee?w=400&h=300&fit=crop&crop=center", avgCwp: 4.80 },
-  { id: "cotton", name: "Cotton", image: "https://images.unsplash.com/photo-1594897030264-ab7d87efc473?w=400&h=300&fit=crop&crop=center", avgCwp: 3.90 },
+  { id: "wheat", name: "Wheat", image: wheatImg, avgCwp: 6.75 },
+  { id: "rice", name: "Rice", image: riceImg, avgCwp: 5.20 },
+  { id: "maize", name: "Maize", image: maizeImg, avgCwp: 7.10 },
+  { id: "soybean", name: "Soybean", image: soybeanImg, avgCwp: 4.80 },
+  { id: "cotton", name: "Cotton", image: cottonImg, avgCwp: 3.90 },
 ];
 
 interface EnvParam { key: string; label: string; unit: string; min: number; max: number; step: number; defaultValue: number; icon: React.ReactNode; }
