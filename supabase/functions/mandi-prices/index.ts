@@ -95,6 +95,49 @@ async function fetchAllForCommodity(commodity: string, maxPages = 6): Promise<Re
   return out;
 }
 
+const toDdmmyyyy = (iso: string) => {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+};
+
+async function fetchHistorical(commodity: string, days: number, apmc?: string): Promise<Record_[]> {
+  // data.gov.in resource only keeps a small window per request; fetch each date explicitly.
+  const today = new Date();
+  const dates: string[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    dates.push(d.toISOString().slice(0, 10));
+  }
+
+  const results: Record_[] = [];
+  // Run in small concurrent batches to avoid rate limits
+  const batchSize = 4;
+  for (let i = 0; i < dates.length; i += batchSize) {
+    const batch = dates.slice(i, i + batchSize);
+    const pages = await Promise.all(
+      batch.map((iso) => {
+        const params = new URLSearchParams({
+          "api-key": API_KEY,
+          format: "json",
+          limit: "1000",
+          offset: "0",
+          "filters[state]": "Maharashtra",
+          "filters[commodity]": commodity,
+          "filters[arrival_date]": toDdmmyyyy(iso),
+        });
+        if (apmc) params.append("filters[market]", apmc);
+        return fetchPage(params).catch(() => []);
+      }),
+    );
+    for (const rows of pages) {
+      results.push(...rows.map(map).filter((r) => r.modal_price !== null && r.arrival_date));
+    }
+    await sleep(120);
+  }
+  return results;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -114,6 +157,29 @@ serve(async (req) => {
         { commodities: Array.from(set).sort() },
         { headers: corsHeaders },
       );
+    }
+
+    if (action === "historical") {
+      const commodity = String(body.commodity ?? "Onion").trim().slice(0, 80);
+      const days = Math.min(60, Math.max(1, Number(body.days ?? 30)));
+      const apmc = body.apmc ? String(body.apmc).trim().slice(0, 80) : undefined;
+      const records = await fetchHistorical(commodity, days, apmc);
+      // aggregate avg modal per date (and per apmc when not filtered)
+      const byDay = new Map<string, number[]>();
+      for (const r of records) {
+        const arr = byDay.get(r.arrival_date) ?? [];
+        if (r.modal_price != null) arr.push(r.modal_price);
+        byDay.set(r.arrival_date, arr);
+      }
+      const series = Array.from(byDay.entries())
+        .map(([date, prices]) => ({
+          date,
+          modal: Math.round(prices.reduce((s, p) => s + p, 0) / prices.length),
+        }))
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
+      return new Response(JSON.stringify({ series, count: records.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Default: fetch records for a commodity in Maharashtra
