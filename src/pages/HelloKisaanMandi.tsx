@@ -715,36 +715,150 @@ export default function HelloKisaanMandi() {
           </CardContent>
         </Card>
 
+        {/* Interactive APMC comparison bar chart */}
+        {allReportingMandis.length > 1 && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Compare APMC Prices Today</h2>
+                  <p className="text-sm text-slate-600">
+                    Tap a bar to see that mandi's details. Highest in green, lowest in rose.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-emerald-600" /> Best</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-500" /> Selected</span>
+                  <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-rose-500" /> Lowest</span>
+                </div>
+              </div>
+              <div style={{ height: Math.max(220, allReportingMandis.length * 32) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={allReportingMandis}
+                    layout="vertical"
+                    margin={{ top: 4, right: 24, left: 4, bottom: 4 }}
+                  >
+                    <CartesianGrid stroke="#e2e8f0" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(v) => `₹${v}`} />
+                    <YAxis
+                      type="category"
+                      dataKey="market"
+                      width={120}
+                      tick={{ fontSize: 12, fill: "#0f172a" }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(16,185,129,0.08)" }}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0" }}
+                      formatter={(v: number) => [formatINR(v), "Modal Price"]}
+                    />
+                    <Bar
+                      dataKey="modalPrice"
+                      radius={[0, 6, 6, 0]}
+                      animationDuration={700}
+                      onClick={(d: { market?: string }) => d?.market && setMarket(d.market)}
+                      cursor="pointer"
+                    >
+                      {allReportingMandis.map((r) => {
+                        const color =
+                          r.market === bestMandi?.market
+                            ? "#059669"
+                            : r.market === lowestMandi?.market
+                              ? "#f43f5e"
+                              : r.market === market
+                                ? "#f59e0b"
+                                : "#10b981aa";
+                        return <Cell key={r.market} fill={color} />;
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Nearby mandis */}
         <div>
-          <h2 className="text-xl font-bold text-slate-900">
-            Nearby Mandis for {commodity} Prices {selected?.district ? `In ${selected.district}` : ""}
-          </h2>
-          <p className="text-sm text-slate-600 mb-4">
-            Compare {commodity} mandi prices in nearby markets to find the best selling price today.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">
+                Nearby Mandis for {commodity} Prices {selected?.district ? `In ${selected.district}` : ""}
+              </h2>
+              <p className="text-sm text-slate-600">
+                Compare {commodity} mandi prices in nearby markets to find the best selling price today.
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg border bg-slate-100 p-1 text-xs font-medium self-start">
+              {[
+                { k: "high" as const, label: "Price ↓" },
+                { k: "low" as const, label: "Price ↑" },
+                { k: "name" as const, label: "A–Z" },
+              ].map((opt) => (
+                <button
+                  key={opt.k}
+                  onClick={() => setNearbySort(opt.k)}
+                  className={`px-3 py-1.5 rounded-md transition flex items-center gap-1 ${
+                    nearbySort === opt.k ? "bg-emerald-700 text-white shadow" : "text-slate-700 hover:bg-white"
+                  }`}
+                >
+                  <ArrowUpDown className="h-3 w-3" />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
             </div>
-          ) : nearbyMandis.length === 0 ? (
+          ) : sortedNearby.length === 0 ? (
             <p className="text-sm text-slate-500">No other reporting mandis on {fmtDateLong(latestDate)}.</p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {nearbyMandis.map((m) => (
-                <button
-                  key={m.market}
-                  onClick={() => setMarket(m.market)}
-                  className="text-left rounded-xl border bg-white p-4 hover:border-emerald-500 hover:shadow-md transition group"
-                >
-                  <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-                    <Sprout className="h-4 w-4" />
-                    {m.market}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">{m.district || "Maharashtra"}</div>
-                  <div className="mt-2 text-lg font-bold text-slate-900">{formatINR(m.modalPrice)}<span className="text-xs font-normal text-slate-500"> /qtl</span></div>
-                </button>
-              ))}
+              {sortedNearby.map((m) => {
+                const isBest = bestMandi && m.market === bestMandi.market;
+                const isLowest = lowestMandi && m.market === lowestMandi.market;
+                const isSelected = m.market === market;
+                return (
+                  <button
+                    key={m.market}
+                    onClick={() => setMarket(m.market)}
+                    className={`relative text-left rounded-xl border bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] group ${
+                      isSelected
+                        ? "border-emerald-600 ring-2 ring-emerald-500/30 shadow-md"
+                        : "border-slate-200 hover:border-emerald-400"
+                    }`}
+                  >
+                    {isBest && (
+                      <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-bold">
+                        <Award className="h-3 w-3" /> Best
+                      </span>
+                    )}
+                    {isLowest && !isBest && (
+                      <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-rose-100 text-rose-700 px-2 py-0.5 text-[10px] font-bold">
+                        <TrendingDown className="h-3 w-3" /> Lowest
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                      <Sprout className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                      {m.market}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">{m.district || "Maharashtra"}</div>
+                    <div className="mt-2 text-lg font-bold text-slate-900">
+                      {formatINR(m.modalPrice)}
+                      <span className="text-xs font-normal text-slate-500"> /qtl</span>
+                    </div>
+                    {bestMandi && (
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        {m.modalPrice === bestMandi.modalPrice
+                          ? "Top price today"
+                          : `${formatINR(bestMandi.modalPrice - m.modalPrice)} below top`}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
