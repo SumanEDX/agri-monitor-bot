@@ -286,6 +286,7 @@ export default function HelloKisaanMandi() {
   const [commodity, setCommodity] = useState<string>("Onion");
   const [market, setMarket] = useState<string>("");
   const [trendDays, setTrendDays] = useState<7 | 15 | 30>(7);
+  const [nearbySort, setNearbySort] = useState<"high" | "low" | "name">("high");
 
   const commoditiesQuery = useQuery({
     queryKey: ["mh-commodities"],
