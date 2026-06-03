@@ -523,8 +523,9 @@ export default function HelloKisaanMandi() {
 
         {/* Hero banner */}
         <div className="rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-800 to-emerald-900 text-emerald-50 px-6 py-8 md:px-10 md:py-10 shadow-lg">
-          <h1 className="text-2xl md:text-4xl font-bold tracking-tight">
-            {commodity} Mandi Rate Today {market ? `in ${market}` : "in Maharashtra"}
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
+            <CropIcon name={commodity} size={48} />
+            <span>{commodity} Mandi Rate Today {market ? `in ${market}` : "in Maharashtra"}</span>
           </h1>
           <p className="mt-3 text-sm md:text-base text-emerald-100/90 max-w-3xl">
             Live {commodity} prices from {market || "Maharashtra"} mandi. Compare today's minimum, maximum and modal {commodity} rates updated daily.
@@ -558,12 +559,13 @@ export default function HelloKisaanMandi() {
               <button
                 key={c}
                 onClick={() => setCommodity(c)}
-                className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all duration-200 active:scale-95 ${
+                className={`inline-flex items-center gap-1.5 pl-1.5 pr-3.5 py-1 rounded-full text-sm font-medium border transition-all duration-200 active:scale-95 ${
                   active
                     ? "bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-700/20"
                     : "bg-white text-slate-700 border-slate-200 hover:border-emerald-400 hover:text-emerald-700"
                 }`}
               >
+                <CropIcon name={c} size={22} className="ring-1 ring-black/5" />
                 {c}
               </button>
             );
@@ -642,10 +644,20 @@ export default function HelloKisaanMandi() {
               </FilterField>
               <FilterField label="Select Commodity">
                 <Select value={commodity} onValueChange={setCommodity}>
-                  <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white">
+                    <div className="flex items-center gap-2">
+                      <CropIcon name={commodity} size={20} />
+                      <SelectValue />
+                    </div>
+                  </SelectTrigger>
                   <SelectContent className="max-h-72">
                     {(commoditiesQuery.data ?? DEFAULT_COMMODITIES).map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c}>
+                        <span className="flex items-center gap-2">
+                          <CropIcon name={c} size={18} />
+                          {c}
+                        </span>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
