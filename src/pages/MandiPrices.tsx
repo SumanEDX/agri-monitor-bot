@@ -194,11 +194,14 @@ export default function MandiPrices() {
     <div className="space-y-6 pb-10">
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Maharashtra Mandi Intelligence</h1>
+        <div className="flex items-center gap-3">
+          <CropIcon name={crop} size={44} className="shadow-sm" />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Maharashtra Mandi Intelligence</h1>
           <p className="text-muted-foreground mt-1">
             Live APMC price analytics for farmers and traders across {STATE_NAME}.
           </p>
+          </div>
         </div>
         <Badge variant="secondary" className="gap-1.5">
           <Sparkles className="h-3.5 w-3.5" />
@@ -214,9 +217,21 @@ export default function MandiPrices() {
               <Wheat className="h-3.5 w-3.5" /> Crop
             </label>
             <Select value={crop} onValueChange={setCrop}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <div className="flex items-center gap-2">
+                  <CropIcon name={crop} size={20} />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
               <SelectContent>
-                {CROPS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {CROPS.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    <span className="flex items-center gap-2">
+                      <CropIcon name={c} size={18} />
+                      {c}
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
