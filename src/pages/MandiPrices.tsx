@@ -306,7 +306,10 @@ export default function MandiPrices() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle>{crop} – Maharashtra Avg. Trend</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <CropIcon name={crop} size={22} />
+              {crop} – Maharashtra Avg. Trend
+            </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">Modal price (₹/quintal) state-wide average</p>
           </div>
           <div className="flex gap-1 rounded-lg border p-1 bg-muted/30">
@@ -361,7 +364,10 @@ export default function MandiPrices() {
       {/* Nearby mandi comparison */}
       <Card>
         <CardHeader>
-          <CardTitle>Nearby Mandi Comparison</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <CropIcon name={crop} size={22} />
+            Nearby Mandi Comparison
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
             Modal price of {crop} across major Maharashtra APMCs (highest first)
           </p>
