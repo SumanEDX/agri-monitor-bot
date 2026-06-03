@@ -39,6 +39,45 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import cropOnion from "@/assets/crop-onion.jpg";
+import cropTomato from "@/assets/crop-tomato.jpg";
+import cropPotato from "@/assets/crop-potato.jpg";
+import cropWheat from "@/assets/crop-wheat.jpg";
+import cropSoybean from "@/assets/crop-soybean.jpg";
+import cropCotton from "@/assets/crop-cotton.jpg";
+import cropMaize from "@/assets/crop-maize.jpg";
+import cropRice from "@/assets/crop-rice.jpg";
+import cropBajra from "@/assets/crop-bajra.jpg";
+import cropGram from "@/assets/crop-gram.jpg";
+import cropJowar from "@/assets/crop-jowar.jpg";
+
+const CROP_ICONS: Record<string, string> = {
+  onion: cropOnion, tomato: cropTomato, potato: cropPotato,
+  wheat: cropWheat, soybean: cropSoybean, soyabean: cropSoybean,
+  cotton: cropCotton, maize: cropMaize, rice: cropRice, paddy: cropRice,
+  bajra: cropBajra, gram: cropGram, chana: cropGram,
+  jowar: cropJowar, sorghum: cropJowar,
+};
+const getCropIcon = (name?: string): string | undefined => {
+  if (!name) return undefined;
+  const key = name.toLowerCase().trim();
+  if (CROP_ICONS[key]) return CROP_ICONS[key];
+  const match = Object.keys(CROP_ICONS).find((k) => key.includes(k));
+  return match ? CROP_ICONS[match] : undefined;
+};
+const CropIcon = ({ name, size = 20, className = "" }: { name?: string; size?: number; className?: string }) => {
+  const src = getCropIcon(name);
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt={name ?? ""}
+      loading="lazy"
+      className={`inline-block rounded-full object-cover ring-1 ring-white/40 bg-white shadow-sm ${className}`}
+      style={{ width: size, height: size }}
+    />
+  );
+};
 
 // ---------------- Types ----------------
 interface RawRecord {
