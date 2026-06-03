@@ -38,6 +38,60 @@ import {
   getLatestForApmc,
   type Trend,
 } from "@/lib/mandiDataService";
+import cropOnion from "@/assets/crop-onion.jpg";
+import cropTomato from "@/assets/crop-tomato.jpg";
+import cropPotato from "@/assets/crop-potato.jpg";
+import cropWheat from "@/assets/crop-wheat.jpg";
+import cropSoybean from "@/assets/crop-soybean.jpg";
+import cropCotton from "@/assets/crop-cotton.jpg";
+import cropMaize from "@/assets/crop-maize.jpg";
+import cropRice from "@/assets/crop-rice.jpg";
+import cropBajra from "@/assets/crop-bajra.jpg";
+import cropGram from "@/assets/crop-gram.jpg";
+import cropJowar from "@/assets/crop-jowar.jpg";
+
+const CROP_ICONS: Record<string, string> = {
+  onion: cropOnion,
+  tomato: cropTomato,
+  potato: cropPotato,
+  wheat: cropWheat,
+  soybean: cropSoybean,
+  soyabean: cropSoybean,
+  cotton: cropCotton,
+  maize: cropMaize,
+  rice: cropRice,
+  paddy: cropRice,
+  bajra: cropBajra,
+  gram: cropGram,
+  chana: cropGram,
+  jowar: cropJowar,
+  sorghum: cropJowar,
+};
+
+const getCropIcon = (name?: string): string | undefined => {
+  if (!name) return undefined;
+  const key = name.toLowerCase().trim();
+  if (CROP_ICONS[key]) return CROP_ICONS[key];
+  // partial match (e.g. "Onion - Red")
+  const match = Object.keys(CROP_ICONS).find((k) => key.includes(k));
+  return match ? CROP_ICONS[match] : undefined;
+};
+
+const CropIcon = ({ name, size = 20, className = "" }: { name?: string; size?: number; className?: string }) => {
+  const src = getCropIcon(name);
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt={name ?? ""}
+      loading="lazy"
+      width={size}
+      height={size}
+      className={`inline-block rounded-full object-cover ring-1 ring-border bg-background ${className}`}
+      style={{ width: size, height: size }}
+    />
+  );
+};
 
 const formatINR = (n: number | null | undefined) =>
   n == null ? "—" : `₹${Math.round(n).toLocaleString("en-IN")}`;
@@ -140,11 +194,14 @@ export default function MandiPrices() {
     <div className="space-y-6 pb-10">
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Maharashtra Mandi Intelligence</h1>
+        <div className="flex items-center gap-3">
+          <CropIcon name={crop} size={44} className="shadow-sm" />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Maharashtra Mandi Intelligence</h1>
           <p className="text-muted-foreground mt-1">
             Live APMC price analytics for farmers and traders across {STATE_NAME}.
           </p>
+          </div>
         </div>
         <Badge variant="secondary" className="gap-1.5">
           <Sparkles className="h-3.5 w-3.5" />
@@ -160,9 +217,21 @@ export default function MandiPrices() {
               <Wheat className="h-3.5 w-3.5" /> Crop
             </label>
             <Select value={crop} onValueChange={setCrop}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <div className="flex items-center gap-2">
+                  <CropIcon name={crop} size={20} />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
               <SelectContent>
-                {CROPS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {CROPS.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    <span className="flex items-center gap-2">
+                      <CropIcon name={c} size={18} />
+                      {c}
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -237,7 +306,10 @@ export default function MandiPrices() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle>{crop} – Maharashtra Avg. Trend</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <CropIcon name={crop} size={22} />
+              {crop} – Maharashtra Avg. Trend
+            </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">Modal price (₹/quintal) state-wide average</p>
           </div>
           <div className="flex gap-1 rounded-lg border p-1 bg-muted/30">
@@ -292,7 +364,10 @@ export default function MandiPrices() {
       {/* Nearby mandi comparison */}
       <Card>
         <CardHeader>
-          <CardTitle>Nearby Mandi Comparison</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <CropIcon name={crop} size={22} />
+            Nearby Mandi Comparison
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
             Modal price of {crop} across major Maharashtra APMCs (highest first)
           </p>
