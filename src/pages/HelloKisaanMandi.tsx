@@ -644,19 +644,22 @@ export default function HelloKisaanMandi() {
               </FilterField>
               <FilterField label="Select Commodity">
                 <Select value={commodity} onValueChange={setCommodity}>
-                  <SelectTrigger className="bg-white">
-                    <div className="flex items-center gap-2">
-                      <CropIcon name={commodity} size={20} />
-                      <SelectValue />
+                  <SelectTrigger className="bg-white h-11">
+                    <div className="flex items-center gap-2.5">
+                      <CropIcon name={commodity} size={26} className="ring-2 ring-emerald-200 shadow-sm" />
+                      <span className="font-medium text-slate-900">{commodity}</span>
                     </div>
                   </SelectTrigger>
-                  <SelectContent className="max-h-72">
+                  <SelectContent className="max-h-80 min-w-[220px]">
                     {(commoditiesQuery.data ?? DEFAULT_COMMODITIES).map((c) => (
-                      <SelectItem key={c} value={c}>
-                        <span className="flex items-center gap-2">
-                          <CropIcon name={c} size={18} />
-                          {c}
-                        </span>
+                      <SelectItem key={c} value={c} className="py-2.5 cursor-pointer focus:bg-emerald-50">
+                        <div className="flex items-center gap-3">
+                          <CropIcon name={c} size={28} className="ring-2 ring-slate-200 shadow-sm" />
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-900 text-sm">{c}</span>
+                            <span className="text-[11px] text-slate-400">Maharashtra APMC</span>
+                          </div>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
