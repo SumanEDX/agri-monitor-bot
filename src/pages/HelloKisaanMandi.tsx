@@ -375,6 +375,9 @@ export default function HelloKisaanMandi() {
   const allMarkets = useMemo(() => {
     const set = new Set<string>();
     for (const r of allRecords) set.add(r.market);
+    // Always surface the full whitelisted APMC list (e.g. Nashik APMC)
+    // so users can pick a market even before data has loaded for it.
+    for (const m of ALLOWED_MARKETS) set.add(m);
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [allRecords]);
 
