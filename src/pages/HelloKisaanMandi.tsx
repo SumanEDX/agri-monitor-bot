@@ -381,10 +381,10 @@ export default function HelloKisaanMandi() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [allRecords]);
 
-  // Auto-select market when records load
+  // Auto-select a market only on initial load (don't override the user's pick
+  // if they choose an APMC that hasn't reported on the latest date).
   useEffect(() => {
-    if (!latestMarkets.length) return;
-    if (!market || !latestMarkets.includes(market)) {
+    if (!market && latestMarkets.length) {
       setMarket(latestMarkets[0]);
     }
   }, [latestMarkets, market]);
