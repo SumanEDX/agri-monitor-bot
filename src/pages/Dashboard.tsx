@@ -210,8 +210,6 @@ const Dashboard = () => {
     if (!q) return;
     if (q.includes("farmer") || q.includes("किसान") || q.includes("शेतकरी") || q.includes("விவசாயி") || q.includes("రైతు")) {
       navigate("/farmers");
-    } else if (q.includes("plot") || q.includes("खेत") || q.includes("शेत") || q.includes("நிலம்") || q.includes("భూమి")) {
-      navigate("/plots");
     } else if (q.includes("task") || q.includes("कार्य") || q.includes("काम") || q.includes("பணி") || q.includes("పని")) {
       navigate("/tasks");
     } else if (q.includes("water") || q.includes("जल") || q.includes("पाणी") || q.includes("நீர்") || q.includes("నీరు")) {
