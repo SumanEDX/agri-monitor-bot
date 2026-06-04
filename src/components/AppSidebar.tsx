@@ -11,7 +11,6 @@ const AppSidebar = () => {
   const navItems = [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/" },
     { icon: Users, label: t("farmers"), path: "/farmers" },
-    { icon: Map, label: t("plots"), path: "/plots" },
     { icon: ClipboardList, label: t("tasks"), path: "/tasks" },
     { icon: Cloud, label: t("weather"), path: "/weather" },
     { icon: Droplets, label: t("cropWater"), path: "/crop-water" },
