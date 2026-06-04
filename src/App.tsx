@@ -7,7 +7,6 @@ import { I18nProvider } from "@/lib/i18n";
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import Farmers from "./pages/Farmers";
-import Plots from "./pages/Plots";
 import Tasks from "./pages/Tasks";
 import Weather from "./pages/Weather";
 import CropWaterProductivity from "./pages/CropWaterProductivity";
