@@ -29,7 +29,6 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/farmers" element={<Farmers />} />
-              <Route path="/plots" element={<Plots />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/weather" element={<Weather />} />
               <Route path="/crop-water" element={<CropWaterProductivity />} />
