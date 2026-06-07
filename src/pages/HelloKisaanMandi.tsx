@@ -361,6 +361,12 @@ export default function HelloKisaanMandi() {
     staleTime: 1000 * 60 * 10,
   });
 
+  const { data: mandiLastUpdated } = useQuery({
+    queryKey: ["mandi-last-updated"],
+    queryFn: fetchMandiLastUpdated,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const allRecords = recordsQuery.data ?? [];
 
   // Latest available date (across Maharashtra for this commodity)
