@@ -99,6 +99,12 @@ const fetchNearestMandiPrices = async () => {
     .slice(0, 6);
 };
 
+const fetchMandiLastUpdated = async () => {
+  const { data, error } = await supabase.from("mandi_price_history").select("created_at").order("created_at", { ascending: false }).limit(1).single();
+  if (error) return null;
+  return data?.created_at ?? null;
+};
+
 const langToBcp47: Record<Language, string> = {
   en: "en-IN",
   hi: "hi-IN",
