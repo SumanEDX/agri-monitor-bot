@@ -196,6 +196,12 @@ const Dashboard = () => {
     staleTime: 15 * 60 * 1000,
   });
 
+  const { data: mandiLastUpdated } = useQuery({
+    queryKey: ["mandi-last-updated"],
+    queryFn: fetchMandiLastUpdated,
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
     const channels = ["farmers", "plots", "tasks", "water_sources"].map((table) =>
       supabase
@@ -381,6 +387,11 @@ const Dashboard = () => {
             </CardTitle>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <MapPin className="w-3 h-3" /> Ranked by distance from Sinnar, Nashik, Maharashtra · Source: data.gov.in AGMARKNET
+              {mandiLastUpdated && (
+                <span className="inline-flex items-center gap-1 ml-2">
+                  <Clock className="w-3 h-3" /> Snapshot: {new Date(mandiLastUpdated).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
             </p>
           </CardHeader>
           <CardContent>
