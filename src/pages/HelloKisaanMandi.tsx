@@ -296,6 +296,12 @@ async function fetchAvailableCommodities(): Promise<string[]> {
   return list.length ? list : DEFAULT_COMMODITIES;
 }
 
+async function fetchMandiLastUpdated(): Promise<string | null> {
+  const { data, error } = await supabase.from("mandi_price_history").select("created_at").order("created_at", { ascending: false }).limit(1).single();
+  if (error) return null;
+  return data?.created_at ?? null;
+}
+
 // ---------------- Component ----------------
 type TrendKind = "rising" | "falling" | "stable";
 
