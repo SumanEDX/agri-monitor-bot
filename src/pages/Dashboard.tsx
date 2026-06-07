@@ -1,4 +1,4 @@
-import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2, Mic, MicOff, Search, Store, MapPin } from "lucide-react";
+import { Users, Map, ClipboardList, Droplets as DropletsIcon, TrendingUp, Sun, ThermometerSun, Droplets, Cloud, CloudRain, Loader2, Mic, MicOff, Search, Store, MapPin, Clock } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +99,12 @@ const fetchNearestMandiPrices = async () => {
     .slice(0, 6);
 };
 
+const fetchMandiLastUpdated = async () => {
+  const { data, error } = await supabase.from("mandi_price_history").select("created_at").order("created_at", { ascending: false }).limit(1).single();
+  if (error) return null;
+  return data?.created_at ?? null;
+};
+
 const langToBcp47: Record<Language, string> = {
   en: "en-IN",
   hi: "hi-IN",
@@ -188,6 +194,12 @@ const Dashboard = () => {
     queryFn: fetchNearestMandiPrices,
     refetchInterval: 30 * 60 * 1000,
     staleTime: 15 * 60 * 1000,
+  });
+
+  const { data: mandiLastUpdated } = useQuery({
+    queryKey: ["mandi-last-updated"],
+    queryFn: fetchMandiLastUpdated,
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
@@ -375,6 +387,11 @@ const Dashboard = () => {
             </CardTitle>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <MapPin className="w-3 h-3" /> Ranked by distance from Sinnar, Nashik, Maharashtra · Source: data.gov.in AGMARKNET
+              {mandiLastUpdated && (
+                <span className="inline-flex items-center gap-1 ml-2">
+                  <Clock className="w-3 h-3" /> Snapshot: {new Date(mandiLastUpdated).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
             </p>
           </CardHeader>
           <CardContent>

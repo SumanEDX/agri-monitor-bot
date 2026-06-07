@@ -21,6 +21,7 @@ import {
   Award,
   Building2,
   CalendarDays,
+  Clock,
   Loader2,
   MapPin,
   Minus,
@@ -295,6 +296,12 @@ async function fetchAvailableCommodities(): Promise<string[]> {
   return list.length ? list : DEFAULT_COMMODITIES;
 }
 
+async function fetchMandiLastUpdated(): Promise<string | null> {
+  const { data, error } = await supabase.from("mandi_price_history").select("created_at").order("created_at", { ascending: false }).limit(1).single();
+  if (error) return null;
+  return data?.created_at ?? null;
+}
+
 // ---------------- Component ----------------
 type TrendKind = "rising" | "falling" | "stable";
 
@@ -352,6 +359,12 @@ export default function HelloKisaanMandi() {
       return ((data as { series?: { date: string; modal: number }[] })?.series) ?? [];
     },
     staleTime: 1000 * 60 * 10,
+  });
+
+  const { data: mandiLastUpdated } = useQuery({
+    queryKey: ["mandi-last-updated"],
+    queryFn: fetchMandiLastUpdated,
+    staleTime: 5 * 60 * 1000,
   });
 
   const allRecords = recordsQuery.data ?? [];
@@ -688,6 +701,11 @@ export default function HelloKisaanMandi() {
               <div>
                 <h2 className="text-xl font-bold text-slate-900">{commodity} Price Trend in Maharashtra</h2>
                 <p className="text-sm text-slate-600">Historical {commodity} mandi price movement (₹ / Quintal)</p>
+                {mandiLastUpdated && (
+                  <p className="text-xs text-slate-500 mt-1 inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Last snapshot: {new Date(mandiLastUpdated).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                )}
               </div>
               <div className="inline-flex rounded-lg border bg-slate-100 p-1 text-xs font-medium">
                 {[7, 15, 30].map((d) => (
