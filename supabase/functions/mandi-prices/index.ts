@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -163,13 +164,32 @@ serve(async (req) => {
       const commodity = String(body.commodity ?? "Onion").trim().slice(0, 80);
       const days = Math.min(60, Math.max(1, Number(body.days ?? 30)));
       const apmc = body.apmc ? String(body.apmc).trim().slice(0, 80) : undefined;
-      const records = await fetchHistorical(commodity, days, apmc);
-      // aggregate avg modal per date (and per apmc when not filtered)
+
+      // Read from our own snapshot table — the upstream API only serves today's data.
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const since = new Date();
+      since.setDate(since.getDate() - (days - 1));
+      const sinceIso = since.toISOString().slice(0, 10);
+
+      let q = supabase
+        .from("mandi_price_history")
+        .select("arrival_date, modal_price, market")
+        .eq("commodity", commodity)
+        .gte("arrival_date", sinceIso)
+        .order("arrival_date", { ascending: true })
+        .limit(10000);
+      if (apmc) q = q.eq("market", apmc);
+      const { data: rows, error } = await q;
+      if (error) throw new Error(error.message);
+
       const byDay = new Map<string, number[]>();
-      for (const r of records) {
-        const arr = byDay.get(r.arrival_date) ?? [];
-        if (r.modal_price != null) arr.push(r.modal_price);
-        byDay.set(r.arrival_date, arr);
+      for (const r of rows ?? []) {
+        const arr = byDay.get(r.arrival_date as string) ?? [];
+        if (r.modal_price != null) arr.push(r.modal_price as number);
+        byDay.set(r.arrival_date as string, arr);
       }
       const series = Array.from(byDay.entries())
         .map(([date, prices]) => ({
@@ -177,7 +197,7 @@ serve(async (req) => {
           modal: Math.round(prices.reduce((s, p) => s + p, 0) / prices.length),
         }))
         .sort((a, b) => (a.date < b.date ? -1 : 1));
-      return new Response(JSON.stringify({ series, count: records.length }), {
+      return new Response(JSON.stringify({ series, count: rows?.length ?? 0, source: "snapshot" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
