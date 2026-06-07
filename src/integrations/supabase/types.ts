@@ -47,6 +47,48 @@ export type Database = {
         }
         Relationships: []
       }
+      mandi_price_history: {
+        Row: {
+          arrival_date: string
+          commodity: string
+          created_at: string
+          district: string
+          id: string
+          market: string
+          max_price: number | null
+          min_price: number | null
+          modal_price: number
+          state: string
+          variety: string
+        }
+        Insert: {
+          arrival_date: string
+          commodity: string
+          created_at?: string
+          district?: string
+          id?: string
+          market: string
+          max_price?: number | null
+          min_price?: number | null
+          modal_price: number
+          state?: string
+          variety?: string
+        }
+        Update: {
+          arrival_date?: string
+          commodity?: string
+          created_at?: string
+          district?: string
+          id?: string
+          market?: string
+          max_price?: number | null
+          min_price?: number | null
+          modal_price?: number
+          state?: string
+          variety?: string
+        }
+        Relationships: []
+      }
       plots: {
         Row: {
           area: string
