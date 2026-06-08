@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, ArrowRight, icons } from "lucide-react";
+import { Bookmark, ArrowRight } from "lucide-react";
+import { getIcon } from "./iconMap";
 import type { Scheme } from "@/data/schemes";
 
 const SchemeCard = ({ scheme }: { scheme: Scheme }) => {
   const [saved, setSaved] = useState(false);
-  const Icon = (icons as Record<string, React.ComponentType<{ className?: string }>>)[scheme.icon] ?? icons.Sprout;
+  const Icon = getIcon(scheme.icon);
 
   return (
     <div className="group relative bg-white dark:bg-[#22223b] rounded-2xl shadow-sm hover:shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-all duration-300 hover:-translate-y-1 flex flex-col">
