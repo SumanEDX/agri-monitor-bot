@@ -15,6 +15,14 @@ import NashikDashboard from "./components/Dashboard";
 import HelloKisaanMandi from "./pages/HelloKisaanMandi";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import WelfareHome from "./pages/welfare/Home";
+import CentralSchemes from "./pages/welfare/CentralSchemes";
+import MaharashtraSchemes from "./pages/welfare/MaharashtraSchemes";
+import SchemeDetail from "./pages/welfare/SchemeDetail";
+import Compare from "./pages/welfare/Compare";
+import Updates from "./pages/welfare/Updates";
+import FAQ from "./pages/welfare/FAQ";
+import Contact from "./pages/welfare/Contact";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +44,14 @@ const App = () => (
               <Route path="/mandi-prices" element={<HelloKisaanMandi />} />
               <Route path="/nashik-mandi" element={<NashikDashboard />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/welfare" element={<WelfareHome />} />
+              <Route path="/welfare/central-schemes" element={<CentralSchemes />} />
+              <Route path="/welfare/maharashtra-schemes" element={<MaharashtraSchemes />} />
+              <Route path="/welfare/scheme/:id" element={<SchemeDetail />} />
+              <Route path="/welfare/compare" element={<Compare />} />
+              <Route path="/welfare/updates" element={<Updates />} />
+              <Route path="/welfare/faq" element={<FAQ />} />
+              <Route path="/welfare/contact" element={<Contact />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
