@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ExternalLink, Download, ArrowLeft, icons } from "lucide-react";
+import { ExternalLink, Download, ArrowLeft } from "lucide-react";
+import { getIcon } from "@/components/welfare/iconMap";
 import WelfareLayout from "./WelfareLayout";
 import SchemeCard from "@/components/welfare/SchemeCard";
 import { schemes } from "@/data/schemes";
@@ -31,7 +32,7 @@ const SchemeDetail = () => {
     );
   }
 
-  const Icon = (icons as Record<string, React.ComponentType<{ className?: string }>>)[scheme.icon] ?? icons.Sprout;
+  const Icon = getIcon(scheme.icon);
 
   const content = () => {
     switch (tab) {
