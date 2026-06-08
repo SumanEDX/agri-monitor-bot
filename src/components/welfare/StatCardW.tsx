@@ -1,7 +1,7 @@
-import { icons } from "lucide-react";
+import { getIcon } from "./iconMap";
 
 const StatCardW = ({ label, value, icon, color }: { label: string; value: string; icon: string; color: string }) => {
-  const Icon = (icons as Record<string, React.ComponentType<{ className?: string }>>)[icon] ?? icons.Activity;
+  const Icon = getIcon(icon);
   return (
     <div className="bg-white/70 dark:bg-white/5 backdrop-blur rounded-2xl p-5 border border-white/40 dark:border-white/10 shadow-sm">
       <div className="flex items-center gap-3">
