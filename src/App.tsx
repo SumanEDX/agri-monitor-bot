@@ -7,6 +7,7 @@ import { I18nProvider } from "@/lib/i18n";
 import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
 import Farmers from "./pages/Farmers";
+import Plots from "./pages/Plots";
 import Tasks from "./pages/Tasks";
 import Weather from "./pages/Weather";
 import CropWaterProductivity from "./pages/CropWaterProductivity";
@@ -37,6 +38,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/farmers" element={<Farmers />} />
+              <Route path="/plots" element={<Plots />} />
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/weather" element={<Weather />} />
               <Route path="/crop-water" element={<CropWaterProductivity />} />

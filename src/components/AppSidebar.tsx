@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, ClipboardList, Cloud, Settings, Sprout, Droplets, Waves, Globe, IndianRupee, Leaf } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, Cloud, Settings, Sprout, Droplets, Waves, Globe, IndianRupee, Leaf, Map } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useI18n, languageNames, type Language } from "@/lib/i18n";
@@ -11,6 +11,7 @@ const AppSidebar = () => {
   const navItems = [
     { icon: LayoutDashboard, label: t("dashboard"), path: "/" },
     { icon: Users, label: t("farmers"), path: "/farmers" },
+    { icon: Map, label: t("plotsAndFields"), path: "/plots" },
     { icon: ClipboardList, label: t("tasks"), path: "/tasks" },
     { icon: Cloud, label: t("weather"), path: "/weather" },
     { icon: Droplets, label: t("cropWater"), path: "/crop-water" },
