@@ -17,7 +17,7 @@ const AppSidebar = () => {
     { icon: Droplets, label: t("cropWater"), path: "/crop-water" },
     { icon: Waves, label: t("waterSources"), path: "/water-sources" },
     { icon: IndianRupee, label: t("mandiPrices"), path: "/mandi-prices" },
-    { icon: Leaf, label: "Welfare Schemes", path: "/welfare" },
+    { icon: Leaf, label: t("welfareSchemes"), path: "/welfare" },
     { icon: Settings, label: t("settings"), path: "/settings" },
   ];
 
