@@ -9,8 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import wheatImg from "@/assets/crop-wheat.jpg";
 import riceImg from "@/assets/crop-rice.jpg";
 import maizeImg from "@/assets/crop-maize.jpg";
-import soybeanImg from "@/assets/crop-soybean.jpg";
-import cottonImg from "@/assets/crop-cotton.jpg";
+import pearlMilletImg from "@/assets/crop-soybean.jpg";
 
 interface Crop { id: string; name: string; image: string; avgCwp: number; }
 
@@ -18,8 +17,7 @@ const initialCrops: Crop[] = [
   { id: "wheat", name: "Wheat", image: wheatImg, avgCwp: 6.75 },
   { id: "rice", name: "Rice", image: riceImg, avgCwp: 5.20 },
   { id: "maize", name: "Maize", image: maizeImg, avgCwp: 7.10 },
-  { id: "soybean", name: "Soybean", image: soybeanImg, avgCwp: 4.80 },
-  { id: "cotton", name: "Cotton", image: cottonImg, avgCwp: 3.90 },
+  { id: "pearl-millet", name: "Pearl Millet", image: pearlMilletImg, avgCwp: 4.80 },
 ];
 
 interface EnvParam { key: string; label: string; unit: string; min: number; max: number; step: number; defaultValue: number; icon: React.ReactNode; }

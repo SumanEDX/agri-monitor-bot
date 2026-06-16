@@ -39,8 +39,8 @@ const num = (v: unknown) => {
 const normalizeCommodity = (raw: string) => {
   const r = raw.trim();
   const lower = r.toLowerCase();
-  const bases = ["onion", "tomato", "potato", "wheat", "soybean", "cotton", "bajra", "gram", "maize", "jowar", "rice", "groundnut", "sugarcane"];
-  for (const b of bases) if (lower.includes(b)) return b.charAt(0).toUpperCase() + b.slice(1);
+  const bases = ["onion", "tomato", "potato", "wheat", "pearl millet", "bajra", "gram", "maize", "jowar", "rice", "groundnut", "sugarcane"];
+  for (const b of bases) if (lower.includes(b)) return b.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   return r;
 };
 

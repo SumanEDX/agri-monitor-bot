@@ -5,7 +5,7 @@ export const ALLOWED_CROPS = [
   "Tomato",
   "Potato",
   "Wheat",
-  "Soybean",
+  "Pearl Millet",
   "Grapes",
   "Pomegranate",
   "Green Chilli",

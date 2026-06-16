@@ -14,21 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  Award,
-  Building2,
-  CalendarDays,
-  Clock,
-  Loader2,
-  MapPin,
-  Minus,
-  Search,
-  Sprout,
-  TrendingDown,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Award, Building2, CalendarDays, Clock, Loader as Loader2, MapPin, Minus, Search, Sprout, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -44,8 +30,7 @@ import cropOnion from "@/assets/crop-onion.jpg";
 import cropTomato from "@/assets/crop-tomato.jpg";
 import cropPotato from "@/assets/crop-potato.jpg";
 import cropWheat from "@/assets/crop-wheat.jpg";
-import cropSoybean from "@/assets/crop-soybean.jpg";
-import cropCotton from "@/assets/crop-cotton.jpg";
+import cropPearlMillet from "@/assets/crop-soybean.jpg";
 import cropMaize from "@/assets/crop-maize.jpg";
 import cropRice from "@/assets/crop-rice.jpg";
 import cropBajra from "@/assets/crop-bajra.jpg";
@@ -54,8 +39,8 @@ import cropJowar from "@/assets/crop-jowar.jpg";
 
 const CROP_ICONS: Record<string, string> = {
   onion: cropOnion, tomato: cropTomato, potato: cropPotato,
-  wheat: cropWheat, soybean: cropSoybean, soyabean: cropSoybean,
-  cotton: cropCotton, maize: cropMaize, rice: cropRice, paddy: cropRice,
+  wheat: cropWheat, soybean: cropPearlMillet, soyabean: cropPearlMillet,
+  "pearl millet": cropPearlMillet, maize: cropMaize, rice: cropRice, paddy: cropRice,
   bajra: cropBajra, gram: cropGram, chana: cropGram,
   jowar: cropJowar, sorghum: cropJowar,
 };
@@ -267,7 +252,7 @@ function canonicalizeMarket(name: string): string | null {
 
 // Default fallback list (used until API returns)
 const DEFAULT_COMMODITIES = [
-  "Onion", "Tomato", "Potato", "Wheat", "Soyabean", "Cotton", "Maize",
+  "Onion", "Tomato", "Potato", "Wheat", "Pearl Millet", "Maize",
   "Bajra(Pearl Millet/Cumbu)", "Jowar(Sorghum)", "Green Chilli", "Grapes",
   "Pomegranate", "Banana", "Mango", "Garlic", "Gram", "Rice",
 ];
@@ -507,7 +492,7 @@ export default function HelloKisaanMandi() {
     [trendData],
   );
 
-  const QUICK_PICK = ["Onion", "Tomato", "Potato", "Wheat", "Soybean", "Cotton", "Maize", "Gram"];
+  const QUICK_PICK = ["Onion", "Tomato", "Potato", "Wheat", "Pearl Millet", "Maize", "Gram"];
 
   const isLoading = recordsQuery.isLoading;
   const trendInfo: Record<TrendKind, { label: string; cls: string; icon: typeof ArrowUp; emoji: string; sub: string }> = {

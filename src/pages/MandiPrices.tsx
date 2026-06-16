@@ -42,8 +42,7 @@ import cropOnion from "@/assets/crop-onion.jpg";
 import cropTomato from "@/assets/crop-tomato.jpg";
 import cropPotato from "@/assets/crop-potato.jpg";
 import cropWheat from "@/assets/crop-wheat.jpg";
-import cropSoybean from "@/assets/crop-soybean.jpg";
-import cropCotton from "@/assets/crop-cotton.jpg";
+import cropPearlMillet from "@/assets/crop-soybean.jpg";
 import cropMaize from "@/assets/crop-maize.jpg";
 import cropRice from "@/assets/crop-rice.jpg";
 import cropBajra from "@/assets/crop-bajra.jpg";
@@ -55,9 +54,9 @@ const CROP_ICONS: Record<string, string> = {
   tomato: cropTomato,
   potato: cropPotato,
   wheat: cropWheat,
-  soybean: cropSoybean,
-  soyabean: cropSoybean,
-  cotton: cropCotton,
+  soybean: cropPearlMillet,
+  soyabean: cropPearlMillet,
+  "pearl millet": cropPearlMillet,
   maize: cropMaize,
   rice: cropRice,
   paddy: cropRice,

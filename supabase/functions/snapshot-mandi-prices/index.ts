@@ -10,7 +10,7 @@ const ENDPOINT = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a
 const API_KEY = Deno.env.get("DATA_GOV_IN_API_KEY") ?? "579b464db66ec23bdd000001";
 
 const COMMODITIES = [
-  "Onion", "Tomato", "Potato", "Wheat", "Soybean", "Cotton",
+  "Onion", "Tomato", "Potato", "Wheat", "Pearl Millet",
   "Bajra", "Gram", "Maize", "Jowar", "Rice", "Grapes",
   "Pomegranate", "Green Chilli",
 ];
@@ -28,7 +28,7 @@ const num = (v: unknown): number | null => {
 };
 const normalizeCommodity = (raw: string) => {
   const lower = raw.trim().toLowerCase();
-  const bases = ["onion", "tomato", "potato", "wheat", "soybean", "cotton", "bajra", "gram", "maize", "jowar", "rice", "groundnut", "sugarcane", "grapes", "pomegranate", "green chilli"];
+  const bases = ["onion", "tomato", "potato", "wheat", "pearl millet", "bajra", "gram", "maize", "jowar", "rice", "groundnut", "sugarcane", "grapes", "pomegranate", "green chilli"];
   for (const b of bases) if (lower.includes(b)) return b.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
   return raw.trim();
 };

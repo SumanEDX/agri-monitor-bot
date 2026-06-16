@@ -32,7 +32,7 @@ export interface MandiPriceRecord {
 export const STATE_NAME = "Maharashtra";
 
 // Fallback list (used if the dynamic commodity fetch fails)
-export const FALLBACK_CROPS = ["Onion", "Tomato", "Potato", "Wheat", "Soybean", "Cotton", "Bajra", "Gram", "Maize", "Jowar"];
+export const FALLBACK_CROPS = ["Onion", "Tomato", "Potato", "Wheat", "Pearl Millet", "Bajra", "Gram", "Maize", "Jowar"];
 
 interface FetchResult {
   records: RawApiRecord[];
