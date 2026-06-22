@@ -17,7 +17,7 @@ type Record_ = {
   market: string;
   district: string;
   state: string;
-  arrival_date: string; // ISO yyyy-mm-dd
+  arrival_date: string;
   modal_price: number | null;
   min_price: number | null;
   max_price: number | null;
@@ -35,7 +35,6 @@ const num = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-// Normalize commodity variants (e.g. "Onion Red" -> "Onion")
 const normalizeCommodity = (raw: string) => {
   const r = raw.trim();
   const lower = r.toLowerCase();
@@ -77,7 +76,6 @@ async function fetchPage(params: URLSearchParams, retries = 4): Promise<Raw[]> {
 }
 
 async function fetchAllForCommodity(commodity: string, maxPages = 6): Promise<Record_[]> {
-  // Server-side filter by state=Maharashtra + commodity, sorted desc by arrival_date.
   const out: Record_[] = [];
   for (let p = 0; p < maxPages; p++) {
     const params = new URLSearchParams({
@@ -102,7 +100,6 @@ const toDdmmyyyy = (iso: string) => {
 };
 
 async function fetchHistorical(commodity: string, days: number, apmc?: string): Promise<Record_[]> {
-  // data.gov.in resource only keeps a small window per request; fetch each date explicitly.
   const today = new Date();
   const dates: string[] = [];
   for (let i = 0; i < days; i++) {
@@ -112,7 +109,6 @@ async function fetchHistorical(commodity: string, days: number, apmc?: string): 
   }
 
   const results: Record_[] = [];
-  // Run in small concurrent batches to avoid rate limits
   const batchSize = 4;
   for (let i = 0; i < dates.length; i += batchSize) {
     const batch = dates.slice(i, i + batchSize);
@@ -147,10 +143,9 @@ serve(async (req) => {
     const action = String(body.action ?? "data");
 
     if (action === "commodities") {
-      // List commodities currently reported in Maharashtra (most recent page)
       const params = new URLSearchParams({
         "api-key": API_KEY, format: "json", limit: "1000", offset: "0",
-      "filters[state]": "Maharashtra",
+        "filters[state]": "Maharashtra",
       });
       const rows = (await fetchPage(params)).map(map);
       const set = new Set(rows.map((r) => r.commodity).filter(Boolean));
@@ -165,7 +160,6 @@ serve(async (req) => {
       const days = Math.min(60, Math.max(1, Number(body.days ?? 30)));
       const apmc = body.apmc ? String(body.apmc).trim().slice(0, 80) : undefined;
 
-      // Read from our own snapshot table — the upstream API only serves today's data.
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -182,14 +176,65 @@ serve(async (req) => {
         .order("arrival_date", { ascending: true })
         .limit(10000);
       if (apmc) q = q.eq("market", apmc);
-      const { data: rows, error } = await q;
+      const { data: dbRows, error } = await q;
       if (error) throw new Error(error.message);
 
+      type RowSlim = { arrival_date: string; modal_price: number | null; market: string };
+      let allRows: RowSlim[] = (dbRows ?? []).map((r) => ({
+        arrival_date: r.arrival_date as string,
+        modal_price: r.modal_price as number | null,
+        market: r.market as string,
+      }));
+      const dbDates = new Set(allRows.map((r) => r.arrival_date));
+
+      // When DB has fewer than 50% of requested days, supplement with live API data
+      // and write through to DB so future requests are served from cache.
+      if (dbDates.size < Math.ceil(days * 0.5)) {
+        try {
+          const liveRecords = await fetchHistorical(commodity, Math.min(days, 20), apmc);
+          const newRecords = liveRecords.filter(
+            (r) => r.modal_price != null && r.arrival_date && !dbDates.has(r.arrival_date),
+          );
+
+          if (newRecords.length > 0) {
+            // Write-through: persist to DB (fire-and-forget — don't block the response)
+            const toUpsert = newRecords.map((r) => ({
+              commodity: r.commodity,
+              variety: r.variety || "",
+              market: r.market,
+              district: r.district || "",
+              state: r.state || "Maharashtra",
+              arrival_date: r.arrival_date,
+              modal_price: r.modal_price ?? 0,
+              min_price: r.min_price ?? 0,
+              max_price: r.max_price ?? 0,
+            }));
+            supabase
+              .from("mandi_price_history")
+              .upsert(toUpsert, { onConflict: "commodity,variety,market,arrival_date" })
+              .then(({ error: uErr }) => { if (uErr) console.error("write-through error:", uErr.message); });
+
+            // Merge into result
+            allRows = [
+              ...allRows,
+              ...newRecords.map((r) => ({
+                arrival_date: r.arrival_date,
+                modal_price: r.modal_price,
+                market: r.market,
+              })),
+            ];
+          }
+        } catch (liveErr) {
+          // Non-fatal: return whatever DB data we have
+          console.error("live fallback error:", liveErr);
+        }
+      }
+
       const byDay = new Map<string, number[]>();
-      for (const r of rows ?? []) {
-        const arr = byDay.get(r.arrival_date as string) ?? [];
-        if (r.modal_price != null) arr.push(r.modal_price as number);
-        byDay.set(r.arrival_date as string, arr);
+      for (const r of allRows) {
+        const arr = byDay.get(r.arrival_date) ?? [];
+        if (r.modal_price != null) arr.push(r.modal_price);
+        byDay.set(r.arrival_date, arr);
       }
       const series = Array.from(byDay.entries())
         .map(([date, prices]) => ({
@@ -197,12 +242,14 @@ serve(async (req) => {
           modal: Math.round(prices.reduce((s, p) => s + p, 0) / prices.length),
         }))
         .sort((a, b) => (a.date < b.date ? -1 : 1));
-      return new Response(JSON.stringify({ series, count: rows?.length ?? 0, source: "snapshot" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+      return new Response(
+        JSON.stringify({ series, count: allRows.length, source: dbDates.size > 1 ? "snapshot" : "live" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    // Default: fetch records for a commodity in Maharashtra
+    // Default: fetch latest records for a commodity in Maharashtra
     const commodity = String(body.commodity ?? body.crop ?? "Onion").trim().slice(0, 80);
     if (!commodity) {
       return new Response(JSON.stringify({ error: "commodity required" }), {
